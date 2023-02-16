@@ -4,6 +4,10 @@ const readline = require('readline');
 const { normalize } = require('../utils/token.utils');
 const { tokens } = require('../global.config');
 const { BigNumber } = require('ethers');
+const dotenv = require('dotenv');
+const { getMongoClient } = require('../utils/mongo.utils');
+dotenv.config();
+const USE_DB = process.env.USE_DB &&  process.env.USE_DB == 'true';
 
 async function getUniswapAveragePriceAndLiquidity(dataDir, fromSymbol, toSymbol, fromBlock, toBlock) {
     const aggregatedLiquidity = await getUniV2AggregatedDataForBlockNumbers(dataDir, fromSymbol, toSymbol, fromBlock, toBlock);
@@ -142,91 +146,144 @@ async function getUniV2AggregatedDataForBlockNumbers(dataDir, fromSymbol, toSymb
 }
 
 async function getUniV2DataForBlockNumber(dataDir, fromSymbol, toSymbol, targetBlockNumber) {
-    const fileInfo = getUniV2DataFile(dataDir, fromSymbol, toSymbol);
-    if(!fileInfo) {
-        throw new Error(`Could not find pool data for ${fromSymbol}/${toSymbol} on uniswapv2`);
-    }
-    
-    const fileStream = fs.createReadStream(fileInfo.path);
-
-    const rl = readline.createInterface({
-        input: fileStream,
-        crlfDelay: Infinity
-    });
-
-
-    let first = true;
-    let selectedValue = null;
-    for await (const line of rl) {
-        if(first) {
-            first = false;
-        } else {
-            const splitted = line.split(',');
-            const blockNumber = Number(splitted[0]);
-            const reserve0 = splitted[1];
-            const reserve1 = splitted[2];
-
-            // init selected value with first line
-            if(!selectedValue) {
-                selectedValue = {
-                    blockNumber,
-                    reserve0,
-                    reserve1
-                };
+    if(USE_DB) {
+        const mongoClient = getMongoClient();
+        let pairKey = `${fromSymbol}-${toSymbol}`;
+        let pool = await mongoClient.db('history').collection('pools').findOne({poolName: pairKey, protocol: 'uniswapv2'});
+        let reversed = false;
+        if(!pool) {
+            pairKey = `${toSymbol}-${fromSymbol}`;
+            pool = await mongoClient.db('history').collection('pools').findOne({poolName: pairKey, protocol: 'uniswapv2'});
+            reversed = true;
+            if(!pool) {
+                throw new Error(`Could not find pool data for ${fromSymbol}/${toSymbol} on uniswapv2`);
             }
+        } 
 
-            if(blockNumber == targetBlockNumber) {
-                // stop loop we found the exact block number
-                selectedValue = {
-                    blockNumber,
-                    reserve0,
-                    reserve1
-                };
-                break; 
-            } else if(blockNumber > targetBlockNumber) {
-                // if the current block number is superior than the target block number
-                // check which one is the closest: the last selected value or the current?
-                const distanceFromLast = Math.abs(targetBlockNumber - selectedValue.blockNumber);
-                const distanceFromCurrent =  Math.abs(targetBlockNumber - blockNumber);
-                // take the smallest
-                if(distanceFromLast > distanceFromCurrent) {
+        const filter = {
+            poolId: pool._id,
+            blocknumber: { $gte: targetBlockNumber }
+        };
+        const [liquidityGte] = await mongoClient.db('history').collection('reserves').find(filter).sort({blocknumber: 1}).limit(1).toArray();
+        let foundLiquidity = liquidityGte;
+        if(!liquidityGte || liquidityGte.blocknumber != targetBlockNumber) {
+            filter.blocknumber = { $lt: targetBlockNumber };
+            const distanceGt = liquidityGte ? liquidityGte.blocknumber - targetBlockNumber : Number.POSITIVE_INFINITY;
+            const [liquidityLt] = await mongoClient.db('history').collection('reserves').find(filter).sort({blocknumber: -1}).limit(1).toArray();
+            if(liquidityLt) {
+                const distanceLt = targetBlockNumber - liquidityLt.blocknumber;
+
+                if(distanceLt < distanceGt) {
+                    foundLiquidity = liquidityLt;
+                }
+            }
+        }
+
+        const liquidityValueAtBlock = {
+            blockNumber: foundLiquidity.blocknumber,
+            from: fromSymbol,
+            to: toSymbol,
+        };
+    
+        if(reversed) {
+            liquidityValueAtBlock.fromReserve = foundLiquidity.r1;
+            liquidityValueAtBlock.toReserve = foundLiquidity.r0;
+        } else {
+            liquidityValueAtBlock.fromReserve = foundLiquidity.r0;
+            liquidityValueAtBlock.toReserve = foundLiquidity.r1;
+        }
+    
+        await mongoClient.close();
+        return liquidityValueAtBlock;
+
+    } else {
+        const fileInfo = getUniV2DataFile(dataDir, fromSymbol, toSymbol);
+        if(!fileInfo) {
+            throw new Error(`Could not find pool data for ${fromSymbol}/${toSymbol} on uniswapv2`);
+        }
+        
+        const fileStream = fs.createReadStream(fileInfo.path);
+    
+        const rl = readline.createInterface({
+            input: fileStream,
+            crlfDelay: Infinity
+        });
+    
+    
+        let first = true;
+        let selectedValue = null;
+        for await (const line of rl) {
+            if(first) {
+                first = false;
+            } else {
+                const splitted = line.split(',');
+                const blockNumber = Number(splitted[0]);
+                const reserve0 = splitted[1];
+                const reserve1 = splitted[2];
+    
+                // init selected value with first line
+                if(!selectedValue) {
                     selectedValue = {
                         blockNumber,
                         reserve0,
                         reserve1
                     };
                 }
-                // here we break, returning either the current value or the last one
-                break; 
+    
+                if(blockNumber == targetBlockNumber) {
+                    // stop loop we found the exact block number
+                    selectedValue = {
+                        blockNumber,
+                        reserve0,
+                        reserve1
+                    };
+                    break; 
+                } else if(blockNumber > targetBlockNumber) {
+                    // if the current block number is superior than the target block number
+                    // check which one is the closest: the last selected value or the current?
+                    const distanceFromLast = Math.abs(targetBlockNumber - selectedValue.blockNumber);
+                    const distanceFromCurrent =  Math.abs(targetBlockNumber - blockNumber);
+                    // take the smallest
+                    if(distanceFromLast > distanceFromCurrent) {
+                        selectedValue = {
+                            blockNumber,
+                            reserve0,
+                            reserve1
+                        };
+                    }
+                    // here we break, returning either the current value or the last one
+                    break; 
+                }
+                // by default just save the last value as selected value
+                selectedValue = {
+                    blockNumber,
+                    reserve0,
+                    reserve1
+                };
             }
-            // by default just save the last value as selected value
-            selectedValue = {
-                blockNumber,
-                reserve0,
-                reserve1
-            };
+            // console.log('line:', line);    
+    
         }
-        // console.log('line:', line);    
-
+    
+        fileStream.close();
+    
+        const liquidityValueAtBlock = {
+            blockNumber: selectedValue.blockNumber,
+            from: fromSymbol,
+            to: toSymbol,
+        };
+    
+        if(fileInfo.reverse) {
+            liquidityValueAtBlock.fromReserve = selectedValue.reserve1;
+            liquidityValueAtBlock.toReserve = selectedValue.reserve0;
+        } else {
+            liquidityValueAtBlock.fromReserve = selectedValue.reserve0;
+            liquidityValueAtBlock.toReserve = selectedValue.reserve1;
+        }
+    
+        return liquidityValueAtBlock;
     }
-
-    fileStream.close();
-
-    const liquidityValueAtBlock = {
-        blockNumber: selectedValue.blockNumber,
-        from: fromSymbol,
-        to: toSymbol,
-    };
-
-    if(fileInfo.reverse) {
-        liquidityValueAtBlock.fromReserve = selectedValue.reserve1;
-        liquidityValueAtBlock.toReserve = selectedValue.reserve0;
-    } else {
-        liquidityValueAtBlock.fromReserve = selectedValue.reserve0;
-        liquidityValueAtBlock.toReserve = selectedValue.reserve1;
-    }
-
-    return liquidityValueAtBlock;
+    
 }
 
 function getUniV2DataFile(dataDir, fromSymbol, toSymbol) {
@@ -281,11 +338,14 @@ function computeLiquidityUniV2Pool(fromSymbol, fromReserve, toSymbol, toReserve,
 
 module.exports = { getUniswapPriceAndLiquidity, getUniswapAveragePriceAndLiquidity };
 
-// async function test() {
-//     // computeLiquidityUniV2Pool('ETH', 28345.5, 'USDC', 43920629, 10/100 );
-//     const start = Date.now();
-//     console.log(await getUniswapAveragePriceAndLiquidity('./data', 'ETH', 'USDC', 10000000, 18000000));
-//     console.log('duration', Date.now() - start);
-// }
+async function test() {
+    // computeLiquidityUniV2Pool('ETH', 28345.5, 'USDC', 43920629, 10/100 );
+    const start = Date.now();
+    // console.log(await getUniswapAveragePriceAndLiquidity('./data', 'ETH', 'USDC', 10000000, 18000000));
+    // for(let i = 0; i < 100; i++) {
+        console.log(await getUniswapPriceAndLiquidity('./data', 'ETH', 'USDC', 16625924));
+    // }
+    console.log('duration', Date.now() - start);
+}
 
-// test();
+test();

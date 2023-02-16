@@ -7,10 +7,12 @@ const univ2Config = require('./uniswap.v2.config');
 const { tokens } = require('../global.config');
 const { GetContractCreationBlockNumber } = require('../utils/web3.utils');
 const { sleep } = require('../utils/utils');
+const { getMongoClient } = require('../utils/mongo.utils');
 
 const RPC_URL = process.env.RPC_URL;
 const DATA_DIR = process.cwd() + '/data';
 const MINIMUM_TO_APPEND = process.env.MINIMUM_TO_APPEND || 5000;
+const USE_DB = process.env.USE_DB &&  process.env.USE_DB == 'true';
 
 /**
  * Fetch all liquidity history from UniswapV2 pairs
@@ -52,19 +54,40 @@ async function FetchHistoryForPair(web3Provider, pairKey, historyFileName) {
     const pairContract = new ethers.Contract(pairAddress, univ2Config.uniswapV2PairABI, web3Provider);
     const currentBlock = await web3Provider.getBlockNumber();
 
-    const initStepBlock = 50000;
+    const initStepBlock = 5000;
     let stepBlock = initStepBlock;
 
     let startBlock = undefined;
-    if (!fs.existsSync(DATA_DIR)){
-        fs.mkdirSync(DATA_DIR);
-    }
-    if(!fs.existsSync(historyFileName)) {
-        fs.writeFileSync(historyFileName, `blocknumber,reserve_${token0Symbol}_${token0Address},reserve_${token1Symbol}_${token1Address}\n`);
+    let mongoClient = undefined;
+    let pool = undefined;
+    if(USE_DB) {
+        mongoClient = getMongoClient();
+        pool = await mongoClient.db('history').collection('pools').findOne({poolName: pairKey, protocol: 'uniswapv2'});
+        // if the pool does not exists, create it and do not fetch last block fetched as it will not exists
+        if(!pool) {
+            await mongoClient.db('history').collection('pools').insertOne({
+                poolName: pairKey, 
+                protocol: 'uniswapv2',
+                tokens: [token0Symbol, token1Symbol]
+            });
+
+            // re query the pool to get the id
+            pool = await mongoClient.db('history').collection('pools').findOne({poolName: pairKey, protocol: 'uniswapv2'});
+        } else {
+            const lastReserveValue = await mongoClient.db('history').collection('reserves').find({poolId: pool._id}).sort({blocknumber: -1}).limit(1).toArray();
+            startBlock = lastReserveValue[0].blocknumber + 1;
+        }
     } else {
-        const fileContent = fs.readFileSync(historyFileName, 'utf-8').split('\n');
-        const lastLine = fileContent[fileContent.length-2];
-        startBlock = Number(lastLine.split(',')[0]) + 1;
+        if (!fs.existsSync(DATA_DIR)){
+            fs.mkdirSync(DATA_DIR);
+        }
+        if(!fs.existsSync(historyFileName)) {
+            fs.writeFileSync(historyFileName, `blocknumber,reserve_${token0Symbol}_${token0Address},reserve_${token1Symbol}_${token1Address}\n`);
+        } else {
+            const fileContent = fs.readFileSync(historyFileName, 'utf-8').split('\n');
+            const lastLine = fileContent[fileContent.length-2];
+            startBlock = Number(lastLine.split(',')[0]) + 1;
+        }
     }
     
     if(!startBlock) {
@@ -121,16 +144,48 @@ async function FetchHistoryForPair(web3Provider, pairKey, historyFileName) {
 
         console.log(`FetchHistoryForPair[${pairKey}]: from ${fromBlock} to ${toBlock}`);
         
-        if(liquidityValues.length >= MINIMUM_TO_APPEND) {
-            const textToAppend = liquidityValues.map(_ => `${_.blockNumber},${_.reserve0},${_.reserve1}`);
-            fs.appendFileSync(historyFileName, textToAppend.join('\n') + '\n');
-            liquidityValues = [];
+        if (USE_DB) {
+            if(liquidityValues.length != 0) {
+                const documents = liquidityValues.map(_ => {
+                    return {
+                        poolId: pool._id,
+                        blocknumber: Number(_.blockNumber),
+                        r0: _.reserve0.toString(),
+                        r1: _.reserve1.toString(),
+                    };});
+                const insertResults = await mongoClient.db('history').collection('reserves').insertMany(documents);
+                console.log(`FetchHistoryForPair[${pairKey}]: inserted ${insertResults.insertedCount} to DB`);
+                liquidityValues = [];
+            }
+        } else {
+            if(liquidityValues.length >= MINIMUM_TO_APPEND) {
+                const textToAppend = liquidityValues.map(_ => `${_.blockNumber},${_.reserve0},${_.reserve1}`);
+                fs.appendFileSync(historyFileName, textToAppend.join('\n') + '\n');
+                liquidityValues = [];
+            }
         }
     }
     
-    if(liquidityValues.length > 0) {
-        const textToAppend = liquidityValues.map(_ => `${_.blockNumber},${_.reserve0},${_.reserve1}`);
-        fs.appendFileSync(historyFileName, textToAppend.join('\n') + '\n');
+    if (USE_DB) {
+        if(liquidityValues.length != 0) {
+            const documents = liquidityValues.map(_ => {
+                return {
+                    poolId: pool._id,
+                    blocknumber: Number(_.blockNumber),
+                    r0: _.reserve0.toString(),
+                    r1: _.reserve1.toString(),
+                };});
+            const insertResults = await mongoClient.db('history').collection('reserves').insertMany(documents);
+            console.log(`FetchHistoryForPair[${pairKey}]: inserted ${insertResults.insertedCount} to DB`);
+
+        }
+
+        await mongoClient.close();
+    } else {
+        if(liquidityValues.length > 0) {
+            const textToAppend = liquidityValues.map(_ => `${_.blockNumber},${_.reserve0},${_.reserve1}`);
+            fs.appendFileSync(historyFileName, textToAppend.join('\n') + '\n');
+        }
     }
 }
 
