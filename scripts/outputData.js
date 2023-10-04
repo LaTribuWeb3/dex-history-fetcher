@@ -1,5 +1,5 @@
 const { getLiquidity, getVolatility, getLiquidityAllPlatforms } = require('../src/data.interface/data.interface');
-const { getBlankUnifiedData } = require('../src/data.interface/internal/data.interface.utils');
+const { getBlankUnifiedData, useAvgFiles, setLiquigityAvg } = require('../src/data.interface/internal/data.interface.utils');
 const { PLATFORMS } = require('../src/utils/constants');
 const { getBlocknumberForTimestamp } = require('../src/utils/web3.utils');
 const ethers = require('ethers');
@@ -43,10 +43,20 @@ async function generateVolatilyData(base, quote, currentBlock) {
 }
 
 function generateLiquidityData(platform, base, quote, startBlock, currentBlock) {
+    setLiquigityAvg(false);
+
     const liquidity = getLiquidity(platform, base, quote, startBlock, currentBlock);
     if(!liquidity) {
         return;
     }
+
+    setLiquigityAvg(true);
+    const liquidityAvg = getLiquidity(platform, base, quote, startBlock, currentBlock);
+    if(!liquidityAvg) {
+        return;
+    }
+    setLiquigityAvg(false);
+
     const filename = `${base}-${quote}-${platform}-liquidity.csv`;
     
     const headers = [];
@@ -55,7 +65,8 @@ function generateLiquidityData(platform, base, quote, startBlock, currentBlock) 
     headers.push('quote');
     headers.push('block');
     for (let i = 1; i <= 20; i++) {
-        headers.push(`liquidity for ${i}% slippage`);
+        headers.push(`liquidity for ${i}% slippage last $`);
+        headers.push(`liquidity for ${i}% slippage avg`);
     }
 
     fs.writeFileSync(filename, headers.join(',') + '\n');
@@ -68,12 +79,19 @@ function generateLiquidityData(platform, base, quote, startBlock, currentBlock) 
         data.push(block);
 
         const liquidityDataAtBlock = liquidity[block];
+        const liquidityDataAvgAtBlock = liquidityAvg[block];
         for (let i = 1; i <= 20; i++) {
             if(!liquidityDataAtBlock.slippageMap) {
                 data.push(0);
             } else {
                 const dataForSlippage = liquidityDataAtBlock.slippageMap[i * 100];
                 data.push(dataForSlippage);
+            }
+            if(!liquidityDataAvgAtBlock.slippageMap) {
+                data.push(0);
+            } else {
+                const dataForSlippageAvg = liquidityDataAvgAtBlock.slippageMap[i * 100];
+                data.push(dataForSlippageAvg);
             }
         }
 
@@ -83,10 +101,21 @@ function generateLiquidityData(platform, base, quote, startBlock, currentBlock) 
 
 
 function generateDataAllPlatforms(base, quote, startBlock, currentBlock) {
+    setLiquigityAvg(false);
+
     const liquidity = getLiquidityAllPlatforms(base, quote, startBlock, currentBlock);
     if(!liquidity) {
         return;
     }
+    
+    setLiquigityAvg(true);
+    const liquidityAvg = getLiquidityAllPlatforms(base, quote, startBlock, currentBlock);
+    if(!liquidityAvg) {
+        return;
+    }
+
+    setLiquigityAvg(false);
+
     const filename = `${base}-${quote}-all-platforms-liquidity.csv`;
     
     const headers = [];
@@ -95,7 +124,8 @@ function generateDataAllPlatforms(base, quote, startBlock, currentBlock) {
     headers.push('quote');
     headers.push('block');
     for (let i = 1; i <= 20; i++) {
-        headers.push(`liquidity for ${i}% slippage`);
+        headers.push(`liquidity for ${i}% slippage last $`);
+        headers.push(`liquidity for ${i}% slippage avg`);
     }
 
     fs.writeFileSync(filename, headers.join(',') + '\n');
@@ -108,12 +138,20 @@ function generateDataAllPlatforms(base, quote, startBlock, currentBlock) {
         data.push(block);
 
         const liquidityDataAtBlock = liquidity[block];
+        const liquidityDataAtBlockAvg = liquidityAvg[block];
         for (let i = 1; i <= 20; i++) {
             if(!liquidityDataAtBlock.slippageMap) {
                 data.push(0);
             } else {
                 const dataForSlippage = liquidityDataAtBlock.slippageMap[i * 100];
                 data.push(dataForSlippage);
+            }
+
+            if(!liquidityDataAtBlockAvg.slippageMap) {
+                data.push(0);
+            } else {
+                const dataForSlippageAvg = liquidityDataAtBlockAvg.slippageMap[i * 100];
+                data.push(dataForSlippageAvg);
             }
         }
 

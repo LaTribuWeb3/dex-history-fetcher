@@ -3,6 +3,11 @@ const path = require('path');
 const fs = require('fs');
 const { DATA_DIR, DEFAULT_STEP_BLOCK } = require('../../utils/constants');
 
+let useAvgFiles = false;
+
+function setLiquigityAvg(newVal) {
+    useAvgFiles = newVal;
+}
 /**
  * Gets the unified data from csv files
  * @param {string} platform
@@ -22,7 +27,13 @@ function getUnifiedDataForInterval(platform, fromSymbol, toSymbol, fromBlock, to
     }
 
     const filename = `${fromSymbol}-${toSymbol}-unified-data.csv`;
-    const fullFilename = path.join(DATA_DIR, 'precomputed', platform, filename);
+    let fullFilename;
+    if(useAvgFiles) {
+        fullFilename = path.join(DATA_DIR, 'precomputed-avg', platform, filename);
+    }
+    else {
+        fullFilename = path.join(DATA_DIR, 'precomputed', platform, filename);
+    }
 
     return getUnifiedDataForIntervalByFilename(fullFilename, fromBlock, toBlock, stepBlock);
 }
@@ -125,7 +136,14 @@ function getUnifiedDataForIntervalByFilename(fullFilename, fromBlock, toBlock, s
  */
 function specificUnifiedDataForIntervalForstETHwstETH(fromBlock, toBlock, stepBlock= DEFAULT_STEP_BLOCK) {
     const filename = 'WETH-wstETH-unified-data.csv';
-    const fullFilename = path.join(DATA_DIR, 'precomputed', 'uniswapv3', filename);
+    
+    let fullFilename;
+    if(useAvgFiles) {
+        fullFilename = path.join(DATA_DIR, 'precomputed-avg', 'uniswapv3', filename);
+    }
+    else {
+        fullFilename = path.join(DATA_DIR, 'precomputed', 'uniswapv3', filename);
+    }
 
     const unifiedData = getUnifiedDataForIntervalByFilename(fullFilename, fromBlock, toBlock, stepBlock);
 
@@ -142,7 +160,14 @@ function specificUnifiedDataForIntervalForstETHwstETH(fromBlock, toBlock, stepBl
 function getUnifiedDataForIntervalForCurve(fromSymbol, toSymbol, fromBlock, toBlock, stepBlock= DEFAULT_STEP_BLOCK) {
     // for curve, find all files in the precomputed/curve directory that math the fromSymbol-toSymbol.*.csv
     const searchString = `${fromSymbol}-${toSymbol}`;
-    const directory = path.join(DATA_DIR, 'precomputed', 'curve');
+    let directory;
+    
+    if(useAvgFiles) {
+        directory = path.join(DATA_DIR, 'precomputed-avg', 'curve');
+    }
+    else {
+        directory = path.join(DATA_DIR, 'precomputed', 'curve');
+    }
     const matchingFiles = fs.readdirSync(directory).filter(_ => _.startsWith(searchString) && _.endsWith('.csv'));
     console.log(`found ${matchingFiles.length} matching files for ${searchString}`);
 
@@ -215,4 +240,4 @@ function extractDataFromUnifiedLine(line) {
     };
 }
 
-module.exports = { getUnifiedDataForInterval, getBlankUnifiedData };
+module.exports = { getUnifiedDataForInterval, getBlankUnifiedData, setLiquigityAvg };

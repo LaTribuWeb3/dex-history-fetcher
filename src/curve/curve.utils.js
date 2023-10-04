@@ -262,7 +262,7 @@ function v2_computeLiquidityForSlippageCurvePool(baseQty, targetPrice, baseReser
  * @param {number} j 
  * @param {number} amplificationFactor
  */
-function computeLiquidityForSlippageCurvePool(baseQty, targetPrice, reserves, i, j, amplificationFactor) {
+function computeLiquidityForSlippageCurvePoolAvgSlippage(baseQty, targetPrice, reserves, i, j, amplificationFactor) {
     let low = undefined;
     let high = undefined;
     let qtyFrom = baseQty * 2n;
@@ -365,7 +365,7 @@ function v2_computeLiquidityForSlippageCurvePoolCryptoV2(baseQty, targetPrice, b
 }
 
 
-function computeLiquidityForSlippageCurvePoolCryptoV2(baseQty, targetPrice, reserves, i, j, amplificationFactor, gamma, D, priceScale, precisions, decimalsFrom, decimalsTo) {
+function computeLiquidityForSlippageCurvePoolCryptoV2AvgSlippage(baseQty, targetPrice, reserves, i, j, amplificationFactor, gamma, D, priceScale, precisions, decimalsFrom, decimalsTo) {
     let low = undefined;
     let high = undefined;
     let qtyFrom = baseQty * 2n;
@@ -741,7 +741,7 @@ function getAvailableCurve(dataDir) {
  * @param {number} ampFactor
  * @param {string[]} reserves 
  */
-function computePriceAndSlippageMapForReserveValue(fromSymbol, toSymbol, poolTokens, ampFactor, reserves) {
+function computePriceAndSlippageMapForReserveValue(fromSymbol, toSymbol, poolTokens, ampFactor, reserves, avgSlippage = false) {
     if(poolTokens.length != reserves.length) {
         throw new Error('Tokens array must be same length as reserves array');
     }
@@ -761,7 +761,14 @@ function computePriceAndSlippageMapForReserveValue(fromSymbol, toSymbol, poolTok
     let lastAmount = BIGINT_1e18;
     for(let slippageBps = 50; slippageBps <= 2000; slippageBps += 50) {
         const targetPrice = price - (price * slippageBps / 10000);
-        const amountFromForSlippage = v2_computeLiquidityForSlippageCurvePool(lastAmount, targetPrice, reservesNorm18Dec, indexFrom, indexTo, ampFactor)
+        let amountFromForSlippage;
+        if(avgSlippage) {
+            amountFromForSlippage = computeLiquidityForSlippageCurvePoolAvgSlippage(lastAmount, targetPrice, reservesNorm18Dec, indexFrom, indexTo, ampFactor);
+
+        } else {
+            amountFromForSlippage = v2_computeLiquidityForSlippageCurvePool(lastAmount, targetPrice, reservesNorm18Dec, indexFrom, indexTo, ampFactor);
+        }
+        
         const liquidityAtSlippage = normalize(amountFromForSlippage.toString(), 18);
         lastAmount = amountFromForSlippage;
         slippageMap[slippageBps] = liquidityAtSlippage;
@@ -778,7 +785,7 @@ function computePriceAndSlippageMapForReserveValue(fromSymbol, toSymbol, poolTok
  * @param {number} ampFactor
  * @param {string[]} reserves 
  */
-function computePriceAndSlippageMapForReserveValueCryptoV2(fromSymbol, toSymbol, poolTokens, ampFactor, reserves, precisions, gamma, D, priceScale) {
+function computePriceAndSlippageMapForReserveValueCryptoV2(fromSymbol, toSymbol, poolTokens, ampFactor, reserves, precisions, gamma, D, priceScale, avgSlippage= false) {
     if(poolTokens.length != reserves.length) {
         throw new Error('Tokens array must be same length as reserves array');
     }
@@ -800,7 +807,12 @@ function computePriceAndSlippageMapForReserveValueCryptoV2(fromSymbol, toSymbol,
     let lastAmount = baseAmount;
     for(let slippageBps = 50; slippageBps <= 2000; slippageBps += 50) {
         const targetPrice = price - (price * slippageBps / 10000);
-        const amountFromForSlippage = v2_computeLiquidityForSlippageCurvePoolCryptoV2(lastAmount, targetPrice, reserves, indexFrom, indexTo, ampFactor, gamma, D, priceScale, precisions, fromConf.decimals, toConf.decimals);
+        let amountFromForSlippage;
+        if(avgSlippage) {
+            amountFromForSlippage = computeLiquidityForSlippageCurvePoolCryptoV2AvgSlippage(lastAmount, targetPrice, reserves, indexFrom, indexTo, ampFactor, gamma, D, priceScale, precisions, fromConf.decimals, toConf.decimals);
+        } else {
+            amountFromForSlippage = v2_computeLiquidityForSlippageCurvePoolCryptoV2(lastAmount, targetPrice, reserves, indexFrom, indexTo, ampFactor, gamma, D, priceScale, precisions, fromConf.decimals, toConf.decimals);
+        }
         const liquidityAtSlippage = normalize(amountFromForSlippage.toString(), fromConf.decimals);
         lastAmount = amountFromForSlippage;
         

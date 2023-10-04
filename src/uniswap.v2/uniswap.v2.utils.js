@@ -103,6 +103,32 @@ function getUniV2DataFile(dataDir, fromSymbol, toSymbol) {
  * @param {number} targetSlippage 
  * @returns {number} amount of token exchangeable for defined slippage
  */
+function computeLiquidityUniV2PoolAvg(fromReserve, toReserve, targetSlippage) {
+    if(fromReserve == 0) {
+        return 0;
+    }
+        
+    const initPrice = toReserve / fromReserve;
+    const targetPrice = initPrice - (initPrice * targetSlippage);
+    const amountOfFromToExchange = (toReserve / targetPrice) - fromReserve;
+    return amountOfFromToExchange;
+}
+
+/**
+ * Formula from
+ * https://ethereum.stackexchange.com/a/107170/105194
+ *  TL;DR:
+    a = sqrt(pxy)/p - x
+    where p is the target price to be maintained and x and y
+    are the quantities of the two tokens in the pool before the trade takes place.
+    and a is the amount of x I can sell to reach the price p
+ * @param {string} fromSymbol 
+ * @param {number} fromReserve must be normalized with correct decimal place
+ * @param {string} toSymbol 
+ * @param {number} toReserve must be normalized with correct decimal place
+ * @param {number} targetSlippage 
+ * @returns {number} amount of token exchangeable for defined slippage
+ */
 function computeLiquidityUniV2Pool(fromReserve, toReserve, targetSlippage) {
     if(fromReserve == 0) {
         return 0;
@@ -164,4 +190,4 @@ function getAvailableUniswapV2(dataDir) {
     return available;
 }
 
-module.exports = { computeUniswapV2Price, computeLiquidityUniV2Pool, getAvailableUniswapV2, getUniV2DataforBlockInterval };
+module.exports = { computeUniswapV2Price, computeLiquidityUniV2Pool, getAvailableUniswapV2, getUniV2DataforBlockInterval, computeLiquidityUniV2PoolAvg };

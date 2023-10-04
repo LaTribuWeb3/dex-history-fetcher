@@ -42,6 +42,15 @@ function getNextLowerTick(currentTick, tickSpacing) {
     return (Math.floor(currentTick / tickSpacing)) * tickSpacing;
 }
 
+function getSlippagesAvg(currentTick, tickSpacing, sqrtPriceX96, liquidity, token0Decimals, token1Decimals) {
+    const token0Slippage = GetXSlippageAvg(currentTick, tickSpacing, liquidity, token0Decimals, sqrtPriceX96);
+    // const token0Slippage = get_dumpable_amount_x(currentTick, tickSpacing, sqrtPriceX96, liquidity, token0Decimals); // GetXAmountForSlippages(currentTick, tickSpacing, liquidity, token0Decimals, sqrtPriceX96);
+    const token1Slippage = GetYSlippageAvg(currentTick, tickSpacing, liquidity, token1Decimals, sqrtPriceX96);
+    // const token1Slippage = get_dumpable_amount_y(currentTick, tickSpacing, sqrtPriceX96, liquidity, token1Decimals); // GetYAmountForSlippages(currentTick, tickSpacing, liquidity, token1Decimals, sqrtPriceX96);
+
+    return {token0Slippage, token1Slippage};
+}
+
 function getSlippages(currentTick, tickSpacing, sqrtPriceX96, liquidity, token0Decimals, token1Decimals) {
     const token0Slippage = GetAmountXDumpable(currentTick, tickSpacing, liquidity, token0Decimals, sqrtPriceX96);
     // const token0Slippage = get_dumpable_amount_x(currentTick, tickSpacing, sqrtPriceX96, liquidity, token0Decimals); // GetXAmountForSlippages(currentTick, tickSpacing, liquidity, token0Decimals, sqrtPriceX96);
@@ -52,9 +61,9 @@ function getSlippages(currentTick, tickSpacing, sqrtPriceX96, liquidity, token0D
 }
 
 // function test() {
-//     const latestData = JSON.parse(fs.readFileSync('data/uniswapv3/wstETH-WETH-100-latestdata.json', 'utf-8'));
-//     const slippages = getSlippages(latestData.currentTick, latestData.tickSpacing, latestData.currentSqrtPriceX96, latestData.ticks, 18, 18);
-//     fs.writeFileSync('wstETH-ETHSlippages.json', JSON.stringify(slippages, null, 2));
+//     const latestData = JSON.parse(fs.readFileSync('data/uniswapv3/USDC-WETH-100-latestdata.json', 'utf-8'));
+//     const slippages = getSlippagesAvg(latestData.currentTick, latestData.tickSpacing, latestData.currentSqrtPriceX96, latestData.ticks, 6, 18);
+//     fs.writeFileSync('USDC-WETH-Slippages.json', JSON.stringify(slippages, null, 2));
 // }
 
 // test();
@@ -216,6 +225,92 @@ function GetAmountXDumpable(currentTick, tickSpacing, liquidities, tokenDecimals
     return result;
 }
 
+
+/**
+ * @param {number} currentTick 
+ * @param {number} tickSpacing 
+ * @param {{[tick: number]: number}} liquidities 
+ * @param {number} tokenDecimals 
+ * @param {string} sqrtPriceX96 
+ * @returns {[slippageBps: number]: number}
+ */
+function GetXSlippageAvg(currentTick, tickSpacing, liquidities, tokenDecimals, sqrtPriceX96) {
+    const result = {};
+    const _96bits = new BigNumber(2).pow(new BigNumber(96));
+    const sqrtP = new BigNumber(sqrtPriceX96).div(_96bits);
+    const P = sqrtP.times(sqrtP).toNumber();
+    const decimalFactor = new BigNumber(10).pow(tokenDecimals);
+
+    let workingTick = getNextLowerTick(currentTick, tickSpacing);
+    let totalY = 0;
+    let totalX = 0;
+
+    let targetSlippageBps = 50;
+
+    let cptRun = 0;
+    while(targetSlippageBps <= 2000 && cptRun < 100000) {
+        cptRun++;
+        const L = new BigNumber(liquidities[workingTick]).times(CONSTANT_1e18);
+        if(!L.isNaN()) {
+            // pa = lower bound price range
+            const lowerBoundTick = getNextLowerTick(workingTick, tickSpacing);
+            const pa = getTickPrice(lowerBoundTick);
+            const sqrtPa = Math.sqrt(pa);
+            // pb = upper bound price range
+            const upperBoundTick = lowerBoundTick + tickSpacing;
+            const pb = getTickPrice(upperBoundTick);
+            const sqrtPb = Math.sqrt(pb);
+            let yLiquidityInTick = 0;
+
+            // Assuming P ≤ pa, the position is fully in X, so y = 0
+            if(P <= pa) {
+            // We want X so don't care for this case
+            } 
+            // Assuming P ≥ pb, the position is fully in Y , so x = 0:
+            else if(P >= pb) {
+                const y = L.times(sqrtPb - sqrtPa);
+                yLiquidityInTick = y.div(decimalFactor).toNumber();
+            } 
+            // If the current price is in the range: pa < P < pb. mix of x and y
+            else {
+                const y = L.times(sqrtP - sqrtPa);
+                yLiquidityInTick = y.div(decimalFactor).toNumber();
+            }
+
+            // here we have the amount of Y liquidity in the tick
+            // we can compute how much X we have to sell to buy this liquidity
+            const xAmountToSell = yLiquidityInTick / pa;
+            totalX += xAmountToSell;
+            totalY += yLiquidityInTick;
+
+            const avgPrice = totalY / totalX;
+            // console.log(`avg: ${avgPrice}`);
+            // console.log(`  p: ${P}`);
+            const avgSlippageBps = Math.round(Math.abs((P - avgPrice) / P) * 10000);
+
+            // console.log(`diff: ${avgSlippageBps} bps`);
+            if(avgSlippageBps <= targetSlippageBps) {
+                result[targetSlippageBps] = totalX;
+            } else {
+                targetSlippageBps += 50;
+                result[targetSlippageBps] = result[targetSlippageBps - 50];
+                
+                while(avgSlippageBps > targetSlippageBps) {
+                    targetSlippageBps += 50;
+                    result[targetSlippageBps] = result[targetSlippageBps - 50];
+                }
+
+                result[targetSlippageBps] = totalX;
+            }
+            // console.log(`[${workingTick}]: liquidity at tick: ${yLiquidityInTick} y. Sold ${xAmountToSell} x to buy it all. New total sold: ${totalX}`);
+        }
+
+        workingTick -= tickSpacing;
+    }
+
+    return result;
+}
+
 /**
  * @param {number} currentTick 
  * @param {number} tickSpacing 
@@ -290,6 +385,93 @@ function GetAmountYDumpable(currentTick, tickSpacing, liquidities, tokenDecimals
                 //     totalXAvailable: totalX,
                 //     totalYToSell: totalY,
                 // };
+            }
+        }
+        
+        workingTick += tickSpacing;
+    }
+
+    return result;
+}
+
+
+/**
+ * @param {number} currentTick 
+ * @param {number} tickSpacing 
+ * @param {{[tick: number]: number}} liquidities 
+ * @param {number} tokenDecimals 
+ * @param {string} sqrtPriceX96 
+ * @returns {[slippageBps: number]: number}
+ */
+function GetYSlippageAvg(currentTick, tickSpacing, liquidities, tokenDecimals, sqrtPriceX96) {
+    const result = {};
+    const _96bits = new BigNumber(2).pow(new BigNumber(96));
+    const sqrtP = new BigNumber(sqrtPriceX96).div(_96bits); 
+    const P = sqrtP.times(sqrtP).toNumber();
+    const decimalFactor = new BigNumber(10).pow(tokenDecimals);
+
+    let workingTick = getNextLowerTick(currentTick, tickSpacing);
+    let totalX = 0;
+    let totalY = 0;
+    
+    let targetSlippageBps = 50;
+
+    let cptRun = 0;
+    while(targetSlippageBps <= 2000 && cptRun < 100000) {
+        cptRun++;
+        const L = new BigNumber(liquidities[workingTick]).times(CONSTANT_1e18);
+
+        if(!L.isNaN()) {
+            // pa = lower bound price range
+            const lowerBoundTick = getNextLowerTick(workingTick, tickSpacing);
+            const pa = getTickPrice(lowerBoundTick);
+            const sqrtPa = Math.sqrt(pa);
+            // pb = upper bound price range
+            const upperBoundTick = lowerBoundTick + tickSpacing;
+            const pb = getTickPrice(upperBoundTick);
+            const sqrtPb = Math.sqrt(pb);
+            let xLiquidityInTick = 0;
+
+            // Assuming P ≤ pa, the position is fully in X, so y = 0
+            if(P <= pa) {
+                const x = L.times(sqrtPb - sqrtPa).div(sqrtPa * sqrtPb);
+                xLiquidityInTick = x.div(decimalFactor).toNumber();
+            } 
+            // Assuming P ≥ pb, the position is fully in Y , so x = 0:
+            else if(P >= pb) {
+                // We want X so don't care for this case
+            } 
+            // If the current price is in the range: pa < P < pb. mix of x and y
+            else {
+                const x = L.times(sqrtPb - sqrtP).div(sqrtP * sqrtPb);
+                xLiquidityInTick = x.div(decimalFactor).toNumber();
+            }
+
+            // here we have the amount of X liquidity in the tick
+            // we can compute how much Y we have to sell to buy this liquidity
+            const yAmountToSell = xLiquidityInTick * pa;
+            totalX += xLiquidityInTick;
+            totalY += yAmountToSell;
+            // console.log(`[${workingTick}]: liquidity at tick: ${xLiquidityInTick} x. Sold ${yAmountToSell} y to buy it all. New total sold: ${totalY}`);
+
+            const avgPrice = totalY / totalX;
+            // console.log(`avg: ${avgPrice}`);
+            // console.log(`  p: ${P}`);
+            const avgSlippageBps = Math.round(Math.abs((P - avgPrice) / P) * 10000);
+
+            // console.log(`diff: ${avgSlippageBps} bps`);
+            if(avgSlippageBps <= targetSlippageBps) {
+                result[targetSlippageBps] = totalY;
+            } else {
+                targetSlippageBps += 50;
+                result[targetSlippageBps] = result[targetSlippageBps - 50];
+                
+                while(avgSlippageBps > targetSlippageBps) {
+                    targetSlippageBps += 50;
+                    result[targetSlippageBps] = result[targetSlippageBps - 50];
+                }
+
+                result[targetSlippageBps] = totalY;
             }
         }
         
@@ -721,4 +903,4 @@ function getUniV3DataContents(selectedFiles, dataDir, minBlock=0) {
     return dataContents;
 }
 
-module.exports = { getPriceNormalized, getSlippages, getAvailableUniswapV3, getUniV3DataforBlockInterval };
+module.exports = { getPriceNormalized, getSlippages, getAvailableUniswapV3, getUniV3DataforBlockInterval , getSlippagesAvg};
