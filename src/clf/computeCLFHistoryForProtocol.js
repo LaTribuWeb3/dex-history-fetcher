@@ -1,14 +1,7 @@
 const DATA_DIR = process.cwd() + '/data';
 const path = require('path');
 const fs = require('fs');
-
-function jsDateToString(date) {
-    const dateObj = date;
-    const month = dateObj.getUTCMonth() + 1; //months from 1-12
-    const day = dateObj.getUTCDate();
-    const year = dateObj.getUTCFullYear();
-    return day + '.' + month + '.' + year;
-}
+const { jsDateToString } = require('../utils/utils');
 
 
 function unifyProtocolData(protocol) {
