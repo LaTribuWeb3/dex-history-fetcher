@@ -131,13 +131,12 @@ async function transformLiquidityDataForFilename(platform, config, itemToTransfo
             }
         }
 
-        const lineToWrite = `${targetUnifiedData.blockNumber},${targetUnifiedData.price},${JSON.stringify(targetUnifiedData.slippageMap)}`;
+        const lineToWrite = `${targetUnifiedData.blockNumber},${targetUnifiedData.price},${JSON.stringify(targetUnifiedData.slippageMap)}\n`;
         linesToWrite.push(lineToWrite);
     }
 
     if(linesToWrite.length >= 0) {
-        fs.appendFileSync(precomputedOutputDataFullFilePath, linesToWrite.join('\n'));
-        fs.appendFileSync(precomputedOutputDataFullFilePath, '\n');
+        fs.appendFileSync(precomputedOutputDataFullFilePath, linesToWrite.join(''));
     }
 }
 
