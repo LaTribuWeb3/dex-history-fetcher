@@ -12,6 +12,7 @@ const { RecordMonitoring } = require('../utils/monitoring');
 const { DATA_DIR } = require('../utils/constants');
 const path = require('path');
 const { providers } = require('@0xsequence/multicall');
+const { getPriceFromSqrt } = require('./uniswap.v3.utils');
 
 // save liquidity data every 'CONSTANT_BLOCK_INTERVAL' blocks
 
@@ -331,12 +332,15 @@ async function fetchEvents(startBlock, endBlock, contract, token0Conf, token1Con
         // console.log(`${fnName()}[${fromBlock} - ${toBlock}]: found ${events.length} Swap events after ${cptError} errors (fetched ${toBlock-fromBlock+1} blocks)`);
         
         if(events.length != 0) {
+            const swapData = {};
             for(const e of events) {
 
                 // for the wstETH/WETH pool, ignore block 15952167 because of 1.28 price that is an outlier
                 if(e.blockNumber == 15952167 && token0Conf.symbol == 'wstETH' && token1Conf.symbol == 'WETH') {
-                    continue;
+                    console.log('hello');
                 }
+
+                const price = getPriceFromSqrt(e.args.sqrtPriceX96, token0Conf.decimals, token1Conf.decimals);
 
                 const token0Amount = Math.abs(normalize(e.args.amount0, token0Conf.decimals));
                 if(token0Amount < token0Conf.dustAmount) {
@@ -347,9 +351,14 @@ async function fetchEvents(startBlock, endBlock, contract, token0Conf, token1Con
                     continue;
                 }
 
+                swapData[e.blockNumber] = price;
+                
+            }
+
+            for(const [block, price] of Object.entries(swapData)) {
                 swapResults.push({
-                    block: e.blockNumber,
-                    price: token1Amount/token0Amount
+                    block: block,
+                    price: price, //token1Amount/token0Amount
                 });
             }
 
@@ -368,5 +377,5 @@ async function fetchEvents(startBlock, endBlock, contract, token0Conf, token1Con
     return swapResults;
 }
 
-// UniswapV3PriceHistoryFetcher(true);
+UniswapV3PriceHistoryFetcher(true);
 module.exports = { UniswapV3PriceHistoryFetcher };
