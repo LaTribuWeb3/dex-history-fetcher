@@ -15,14 +15,14 @@ const { AdditionalLiquidityComputer } = require('../precomputer/additional.liqui
 const RUN_EVERY_MINUTES = 60;
 
 const fetchersToStart = [
-    // UniswapV2HistoryFetcher,
-    // SushiswapV2HistoryFetcher,
-    // CurveHistoryFetcher,
-    // CurvePriceHistoryFetcher,
+    UniswapV2HistoryFetcher,
+    SushiswapV2HistoryFetcher,
+    CurveHistoryFetcher,
+    CurvePriceHistoryFetcher,
     UniswapV3HistoryFetcher,
     UniswapV3PriceHistoryFetcher,
-    // PrecomputeMedianPrices,
-    // AdditionalLiquidityComputer,
+    PrecomputeMedianPrices,
+    AdditionalLiquidityComputer,
 ];
 
 async function LaunchFetchers() {
