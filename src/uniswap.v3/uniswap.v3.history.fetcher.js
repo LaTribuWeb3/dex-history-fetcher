@@ -22,7 +22,7 @@ const CONSTANT_BLOCK_INTERVAL = 50;
 
 const RPC_URL = process.env.RPC_URL;
 
-const UNISWAPV3_FEES = [3000];
+const UNISWAPV3_FEES = [100, 500, 3000, 10000];
 
 const runEverySec = 60 * 60;
 
@@ -60,7 +60,7 @@ async function UniswapV3HistoryFetcher(onlyOnce = false) {
             // computing the data is CPU heavy so this avoid computing too old data that we don't use
             // fetching events is not
             const minStartDate = Math.round(Date.now()/1000) - 380 * 24 * 60 * 60; // min start block is 380 days ago
-            const minStartBlock = 0; // await getBlocknumberForTimestamp(minStartDate);
+            const minStartBlock = await getBlocknumberForTimestamp(minStartDate);
             console.log(`minStartBlock is ${minStartBlock}`);
 
             console.log(`${fnName()}: getting pools to fetch`);
@@ -395,6 +395,4 @@ function getSaveData(token0, token1, latestData) {
     return `${latestData.blockNumber},${JSON.stringify(saveValue)}\n`;
 }
 
-
-UniswapV3HistoryFetcher(true);
 module.exports = { UniswapV3HistoryFetcher };

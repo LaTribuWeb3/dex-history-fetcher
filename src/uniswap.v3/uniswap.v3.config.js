@@ -11,170 +11,170 @@ const pairsToFetch = [
     "token0": "rETH",
     "token1": "WETH"
   },
-  // {
-  //   "token0": "DAI",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "DAI",
-  //   "token1": "USDC"
-  // },
-  // {
-  //   "token0": "WBTC",
-  //   "token1": "DAI"
-  // },
-  // {
-  //   "token0": "WBTC",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "WBTC",
-  //   "token1": "USDC"
-  // },
-  // {
-  //   "token0": "USDC",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "UNI",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "UNI",
-  //   "token1": "USDC"
-  // },
-  // {
-  //   "token0": "UNI",
-  //   "token1": "WBTC"
-  // },
-  // {
-  //   "token0": "UNI",
-  //   "token1": "DAI"
-  // },
-  // {
-  //   "token0": "MKR",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "MKR",
-  //   "token1": "USDC"
-  // },
-  // {
-  //   "token0": "DAI",
-  //   "token1": "MKR"
-  // },
-  // {
-  //   "token0": "MANA",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "MANA",
-  //   "token1": "USDC"
-  // },
-  // {
-  //   "token0": "SNX",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "USDC",
-  //   "token1": "SNX"
-  // },
-  // {
-  //   "token0": "DAI",
-  //   "token1": "SNX"
-  // },
-  // {
-  //   "token0": "sUSD",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "sUSD",
-  //   "token1": "USDC"
-  // },
-  // {
-  //   "token0": "sUSD",
-  //   "token1": "DAI"
-  // },
-  // {
-  //   "token0": "WETH",
-  //   "token1": "USDT"
-  // },
-  // {
-  //   "token0": "USDC",
-  //   "token1": "USDT"
-  // },
-  // {
-  //   "token0": "WBTC",
-  //   "token1": "USDT"
-  // },
-  // {
-  //   "token0": "LINK",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "LINK",
-  //   "token1": "USDC"
-  // },
-  // {
-  //   "token0": "cbETH",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "wstETH",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "WBTC",
-  //   "token1": "wstETH"
-  // },
-  // {
-  //   "token0": "wstETH",
-  //   "token1": "USDC"
-  // },
-  // {
-  //   "token0": "HarryPotterObamaSonic10Inu",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "PEPE",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "BLUR",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "SHIB",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "LDO",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "WETH",
-  //   "token1": "RPL"
-  // },
-  // {
-  //   "token0": "WETH",
-  //   "token1": "CRV"
-  // },
-  // {
-  //   "token0": "APE",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "CVX",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "FXS",
-  //   "token1": "WETH"
-  // },
-  // {
-  //   "token0": "COMP",
-  //   "token1": "WETH"
-  // },
+  {
+    "token0": "DAI",
+    "token1": "WETH"
+  },
+  {
+    "token0": "DAI",
+    "token1": "USDC"
+  },
+  {
+    "token0": "WBTC",
+    "token1": "DAI"
+  },
+  {
+    "token0": "WBTC",
+    "token1": "WETH"
+  },
+  {
+    "token0": "WBTC",
+    "token1": "USDC"
+  },
+  {
+    "token0": "USDC",
+    "token1": "WETH"
+  },
+  {
+    "token0": "UNI",
+    "token1": "WETH"
+  },
+  {
+    "token0": "UNI",
+    "token1": "USDC"
+  },
+  {
+    "token0": "UNI",
+    "token1": "WBTC"
+  },
+  {
+    "token0": "UNI",
+    "token1": "DAI"
+  },
+  {
+    "token0": "MKR",
+    "token1": "WETH"
+  },
+  {
+    "token0": "MKR",
+    "token1": "USDC"
+  },
+  {
+    "token0": "DAI",
+    "token1": "MKR"
+  },
+  {
+    "token0": "MANA",
+    "token1": "WETH"
+  },
+  {
+    "token0": "MANA",
+    "token1": "USDC"
+  },
+  {
+    "token0": "SNX",
+    "token1": "WETH"
+  },
+  {
+    "token0": "USDC",
+    "token1": "SNX"
+  },
+  {
+    "token0": "DAI",
+    "token1": "SNX"
+  },
+  {
+    "token0": "sUSD",
+    "token1": "WETH"
+  },
+  {
+    "token0": "sUSD",
+    "token1": "USDC"
+  },
+  {
+    "token0": "sUSD",
+    "token1": "DAI"
+  },
+  {
+    "token0": "WETH",
+    "token1": "USDT"
+  },
+  {
+    "token0": "USDC",
+    "token1": "USDT"
+  },
+  {
+    "token0": "WBTC",
+    "token1": "USDT"
+  },
+  {
+    "token0": "LINK",
+    "token1": "WETH"
+  },
+  {
+    "token0": "LINK",
+    "token1": "USDC"
+  },
+  {
+    "token0": "cbETH",
+    "token1": "WETH"
+  },
+  {
+    "token0": "wstETH",
+    "token1": "WETH"
+  },
+  {
+    "token0": "WBTC",
+    "token1": "wstETH"
+  },
+  {
+    "token0": "wstETH",
+    "token1": "USDC"
+  },
+  {
+    "token0": "HarryPotterObamaSonic10Inu",
+    "token1": "WETH"
+  },
+  {
+    "token0": "PEPE",
+    "token1": "WETH"
+  },
+  {
+    "token0": "BLUR",
+    "token1": "WETH"
+  },
+  {
+    "token0": "SHIB",
+    "token1": "WETH"
+  },
+  {
+    "token0": "LDO",
+    "token1": "WETH"
+  },
+  {
+    "token0": "WETH",
+    "token1": "RPL"
+  },
+  {
+    "token0": "WETH",
+    "token1": "CRV"
+  },
+  {
+    "token0": "APE",
+    "token1": "WETH"
+  },
+  {
+    "token0": "CVX",
+    "token1": "WETH"
+  },
+  {
+    "token0": "FXS",
+    "token1": "WETH"
+  },
+  {
+    "token0": "COMP",
+    "token1": "WETH"
+  },
 ]
 
 module.exports = {
