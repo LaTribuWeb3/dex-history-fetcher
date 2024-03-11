@@ -1,5 +1,5 @@
 const { RecordMonitoring } = require('../utils/monitoring');
-const { fnName, roundTo, sleep } = require('../utils/utils');
+const { fnName, roundTo, sleep, readLastLine } = require('../utils/utils');
 
 const fs = require('fs');
 const path = require('path');
@@ -93,17 +93,28 @@ function getFilesForPlatform(from, to, platform) {
 async function transformLiquidityDataForFilename(platform, config, itemToTransform) {
     console.log(`Working on ${platform} for file ${itemToTransform.filename}`);
 
-    const csvLines = getDataFromFile(path.join(DATA_DIR, 'precomputed', platform, itemToTransform.filename));
+    const precomputedInputDataFullFilePath = path.join(DATA_DIR, 'precomputed', platform, itemToTransform.filename);
+
+    // stETH-WETH-stETHngPool-unified-data.csv
+    const targetFileName = itemToTransform.filename.replace(config.from, config.to);
+    const precomputedOutputDataFullFilePath = path.join(DATA_DIR, 'precomputed', platform, targetFileName);
+
+    const preComputedData = getDataFromFile(precomputedInputDataFullFilePath);
     const prices = getPrices(config.priceSource, config.priceFrom, config.priceTo);
 
     const reverse = config.from == itemToTransform.quote;
-    // stETH-WETH-stETHngPool-unified-data.csv
-    const targetFileName = itemToTransform.filename.replace(config.from, config.to);
     const linesToWrite = [];
-    linesToWrite.push('blocknumber,price,slippagemap\n');
+    let startIndex = 0;
 
-    for(let i = 0; i < csvLines.length -1; i++) {
-        const lineToTransform = csvLines[i];
+    if (!fs.existsSync(precomputedOutputDataFullFilePath)) {
+        linesToWrite.push('blocknumber,price,slippagemap\n');
+    } else {
+        startIndex = await getStartIndexFromExistingOuptput(preComputedData, precomputedOutputDataFullFilePath);
+        console.log('Found existing file ' + targetFileName + ' to store additional liquidities. Will start from line ' + startIndex);
+    }
+
+    for (let i = startIndex; i < preComputedData.length - 1; i++) {
+        const lineToTransform = preComputedData[i];
         const unifiedData = extractDataFromUnifiedLine(lineToTransform);
         const closestPrice = getClosestPrice(prices, unifiedData.blockNumber);
         if(!closestPrice) {
@@ -125,8 +136,42 @@ async function transformLiquidityDataForFilename(platform, config, itemToTransfo
     }
 
     if(linesToWrite.length >= 0) {
-        fs.writeFileSync(path.join(DATA_DIR, 'precomputed', platform, targetFileName), linesToWrite.join(''));
+        fs.appendFileSync(precomputedOutputDataFullFilePath, linesToWrite.join(''));
     }
+}
+
+// Written by ChatGPT
+function binarySearchFirstLineIndexStartingWith(target, fileContent) {
+    let left = 0;
+    let right = fileContent.length - 1;
+    let result = -1;
+
+    while (left <= right) {
+        const mid = Math.floor((left + right) / 2);
+        const currentLine = fileContent[mid];
+
+        if (currentLine.startsWith(target)) {
+            // Found a line that starts with the target string
+            result = mid;
+            right = mid - 1; // Continue searching to the left
+        } else if (currentLine < target) {
+            // Target is in the right half of the remaining lines
+            left = mid + 1;
+        } else {
+            // Target is in the left half of the remaining lines
+            right = mid - 1;
+        }
+    }
+
+    return result;
+}
+
+async function getStartIndexFromExistingOuptput(preComputedData, outputFile) {
+    const lastOutputLine = await readLastLine(outputFile);
+    const lastComputedBlock = lastOutputLine.split(',')[0];
+    // We add one because the file starts with the header line and the pre computed data does
+    // not contain it.
+    return binarySearchFirstLineIndexStartingWith(lastComputedBlock, preComputedData) + 1;
 }
 
 function getDataFromFile(fullfilename) {
