@@ -32,22 +32,22 @@ const runEverySec = 60 * 60;
  */
 async function UniswapV3HistoryFetcher(onlyOnce = false) {
     // eslint-disable-next-line no-constant-condition
-    while(true) {
+    while (true) {
         const start = Date.now();
         try {
             await RecordMonitoring({
                 'name': 'UniswapV3 Fetcher',
                 'status': 'running',
-                'lastStart': Math.round(start/1000),
+                'lastStart': Math.round(start / 1000),
                 'runEvery': runEverySec
             });
 
-            if(!RPC_URL) {
+            if (!RPC_URL) {
                 throw new Error('Could not find RPC_URL env variable');
             }
 
-            if(!fs.existsSync(path.join(DATA_DIR, 'uniswapv3'))) {
-                fs.mkdirSync(path.join(DATA_DIR, 'uniswapv3'), {recursive: true});
+            if (!fs.existsSync(path.join(DATA_DIR, 'uniswapv3'))) {
+                fs.mkdirSync(path.join(DATA_DIR, 'uniswapv3'), { recursive: true });
             }
 
             console.log(`${fnName()}: starting`);
@@ -59,7 +59,7 @@ async function UniswapV3HistoryFetcher(onlyOnce = false) {
             // this is used to only keep 380 days of data, but still need to fetch trade data since the pool initialize block
             // computing the data is CPU heavy so this avoid computing too old data that we don't use
             // fetching events is not
-            const minStartDate = Math.round(Date.now()/1000) - 380 * 24 * 60 * 60; // min start block is 380 days ago
+            const minStartDate = Math.round(Date.now() / 1000) - 380 * 24 * 60 * 60; // min start block is 380 days ago
             const minStartBlock = await getBlocknumberForTimestamp(minStartDate);
             console.log(`minStartBlock is ${minStartBlock}`);
 
@@ -68,9 +68,9 @@ async function UniswapV3HistoryFetcher(onlyOnce = false) {
             console.log(`${fnName()}: found ${poolsToFetch.length} pools to fetch from ${univ3Config.pairsToFetch.length} pairs in config`);
 
             const poolsData = [];
-            for(const fetchConfig of poolsToFetch) {
+            for (const fetchConfig of poolsToFetch) {
                 const pairAddress = await FetchUniswapV3HistoryForPair(fetchConfig.pairToFetch, fetchConfig.fee, web3Provider, fetchConfig.poolAddress, currentBlock, minStartBlock);
-                if(pairAddress) {
+                if (pairAddress) {
                     poolsData.push({
                         tokens: [fetchConfig.pairToFetch.token0, fetchConfig.pairToFetch.token1],
                         address: pairAddress,
@@ -87,19 +87,19 @@ async function UniswapV3HistoryFetcher(onlyOnce = false) {
             };
 
             fs.writeFileSync(path.join(DATA_DIR, 'uniswapv3', 'uniswapv3-fetcher-result.json'), JSON.stringify(fetcherResult, null, 2));
-            
+
             // at the end, call the concatener script
             await generateUnifiedFileUniv3(currentBlock);
 
-            const runEndDate = Math.round(Date.now()/1000);
+            const runEndDate = Math.round(Date.now() / 1000);
             await RecordMonitoring({
                 'name': 'UniswapV3 Fetcher',
                 'status': 'success',
                 'lastEnd': runEndDate,
-                'lastDuration': runEndDate - Math.round(start/1000),
+                'lastDuration': runEndDate - Math.round(start / 1000),
                 'lastBlockFetched': currentBlock
             });
-        } catch(error) {
+        } catch (error) {
             const errorMsg = `An exception occurred: ${error}`;
             console.log(errorMsg);
             await RecordMonitoring({
@@ -109,12 +109,12 @@ async function UniswapV3HistoryFetcher(onlyOnce = false) {
             });
         }
 
-        if(onlyOnce) {
+        if (onlyOnce) {
             return;
         }
         const sleepTime = runEverySec * 1000 - (Date.now() - start);
-        if(sleepTime > 0) {
-            console.log(`${fnName()}: sleeping ${roundTo(sleepTime/1000/60)} minutes`);
+        if (sleepTime > 0) {
+            console.log(`${fnName()}: sleeping ${roundTo(sleepTime / 1000 / 60)} minutes`);
             await sleep(sleepTime);
         }
     }
@@ -163,11 +163,11 @@ async function getAllPoolsToFetch(univ3Factory) {
 async function FetchUniswapV3HistoryForPair(pairConfig, fee, web3Provider, poolAddress, currentBlock, minStartBlock) {
     console.log(`${fnName()}[${pairConfig.token0}-${pairConfig.token1}]: start for pair ${pairConfig.token0}-${pairConfig.token1} and fees: ${fee}`);
     const token0 = getConfTokenBySymbol(pairConfig.token0);
-    if(!token0) {
+    if (!token0) {
         throw new Error('Cannot find token in global config with symbol: ' + pairConfig.token0);
     }
     const token1 = getConfTokenBySymbol(pairConfig.token1);
-    if(!token1) {
+    if (!token1) {
         throw new Error('Cannot find token in global config with symbol: ' + pairConfig.token1);
     }
 
@@ -176,7 +176,7 @@ async function FetchUniswapV3HistoryForPair(pairConfig, fee, web3Provider, poolA
     let latestData = undefined;
     let univ3PairContract = undefined;
 
-    if(fs.existsSync(latestDataFilePath)) {
+    if (fs.existsSync(latestDataFilePath)) {
         // if the file exists, set its value to latestData
         latestData = JSON.parse(fs.readFileSync(latestDataFilePath));
         univ3PairContract = new Contract(poolAddress, univ3Config.uniswapV3PairAbi, web3Provider);
@@ -187,13 +187,13 @@ async function FetchUniswapV3HistoryForPair(pairConfig, fee, web3Provider, poolA
 
         // verify that the token0 in config is the token0 of the pool
         const poolToken0 = await univ3PairContract.token0();
-        if(poolToken0.toLowerCase() != token0.address.toLowerCase()) {
+        if (poolToken0.toLowerCase() != token0.address.toLowerCase()) {
             throw new Error(`pool token0 ${poolToken0} != config token0 ${token0.address}. config must match pool order`);
         }
 
         // same for token1
         const poolToken1 = await univ3PairContract.token1();
-        if(poolToken1.toLowerCase() != token1.address.toLowerCase()) {
+        if (poolToken1.toLowerCase() != token1.address.toLowerCase()) {
             throw new Error(`pool token0 ${poolToken1} != config token0 ${token1.address}. config must match pool order`);
         }
 
@@ -203,7 +203,7 @@ async function FetchUniswapV3HistoryForPair(pairConfig, fee, web3Provider, poolA
     }
 
     const dataFileName = `${DATA_DIR}/uniswapv3/${token0.symbol}-${token1.symbol}-${fee}-data.csv`;
-    if(!fs.existsSync(dataFileName)) {
+    if (!fs.existsSync(dataFileName)) {
         fs.writeFileSync(dataFileName, 'blocknumber,data\n');
     }
 
@@ -216,12 +216,12 @@ async function FetchUniswapV3HistoryForPair(pairConfig, fee, web3Provider, poolA
 
     const initBlockStep = 50000;
     let blockStep = initBlockStep;
-    let fromBlock =  latestData.blockNumber + 1;
+    let fromBlock = latestData.blockNumber + 1;
     let toBlock = 0;
     let cptError = 0;
-    while(toBlock < currentBlock) {
+    while (toBlock < currentBlock) {
         toBlock = fromBlock + blockStep - 1;
-        if(toBlock > currentBlock) {
+        if (toBlock > currentBlock) {
             toBlock = currentBlock;
         }
 
@@ -234,10 +234,10 @@ async function FetchUniswapV3HistoryForPair(pairConfig, fee, web3Provider, poolA
                     filterSwap.topics[0]]]
             }, fromBlock, toBlock);
         }
-        catch(e) {
+        catch (e) {
             // console.log(`query filter error: ${e.toString()}`);
             blockStep = Math.round(blockStep / 2);
-            if(blockStep < 1000) {
+            if (blockStep < 1000) {
                 blockStep = 1000;
             }
             toBlock = 0;
@@ -245,9 +245,9 @@ async function FetchUniswapV3HistoryForPair(pairConfig, fee, web3Provider, poolA
             continue;
         }
 
-        console.log(`${fnName()}[${pairConfig.token0}-${pairConfig.token1}-${fee}]: [${fromBlock} - ${toBlock}] found ${events.length} Mint/Burn/Swap events after ${cptError} errors (fetched ${toBlock-fromBlock+1} blocks)`);
-        
-        if(events.length != 0) {
+        console.log(`${fnName()}[${pairConfig.token0}-${pairConfig.token1}-${fee}]: [${fromBlock} - ${toBlock}] found ${events.length} Mint/Burn/Swap events after ${cptError} errors (fetched ${toBlock - fromBlock + 1} blocks)`);
+
+        if (events.length != 0) {
             processEvents(events, iface, latestData, token0, token1, latestDataFilePath, dataFileName, minStartBlock);
 
             // try to find the blockstep to reach 9000 events per call as the RPC limit is 10 000, 
@@ -259,7 +259,7 @@ async function FetchUniswapV3HistoryForPair(pairConfig, fee, web3Provider, poolA
             // if 0 events, multiply blockstep by 4
             blockStep = blockStep * 4;
         }
-        fromBlock = toBlock +1;
+        fromBlock = toBlock + 1;
     }
 
     // at the end, update latest data blockNumber because even if no events were emitted, we must 
@@ -319,12 +319,12 @@ function processEvents(events, iface, latestData, token0, token1, latestDataFile
         const parsedEvent = iface.parseLog(event);
 
         // this checks that we are crossing a new block, so we will save the price and maybe checkpoint data
-        if(lastBlock != event.blockNumber && lastBlock >= latestData.lastDataSave + CONSTANT_BLOCK_INTERVAL && event.blockNumber >= minStartBlock) {
+        if (lastBlock != event.blockNumber && lastBlock >= latestData.lastDataSave + CONSTANT_BLOCK_INTERVAL && event.blockNumber >= minStartBlock) {
             const newSaveData = getSaveData(token0, token1, latestData);
             saveData.push(newSaveData);
         }
 
-        switch(parsedEvent.name.toLowerCase()) {
+        switch (parsedEvent.name.toLowerCase()) {
             case 'mint':
                 if (parsedEvent.args.amount.gt(0)) {
                     const lqtyToAdd = new BigNumber(parsedEvent.args.amount.toString());
@@ -346,19 +346,19 @@ function processEvents(events, iface, latestData, token0, token1, latestDataFile
 
         lastBlock = event.blockNumber;
     }
-    
+
     // at the end, write the last data if not already saved
-    if(latestData.blockNumber != latestData.lastDataSave 
-        && latestData.blockNumber >= latestData.lastDataSave + CONSTANT_BLOCK_INTERVAL 
+    if (latestData.blockNumber != latestData.lastDataSave
+        && latestData.blockNumber >= latestData.lastDataSave + CONSTANT_BLOCK_INTERVAL
         && latestData.blockNumber >= minStartBlock) {
         const newSaveData = getSaveData(token0, token1, latestData);
         saveData.push(newSaveData);
     }
 
-    if(saveData.length > 0) {
+    if (saveData.length > 0) {
         fs.appendFileSync(dataFileName, saveData.join(''));
     }
-    
+
     fs.writeFileSync(latestDataFilePath, JSON.stringify(latestData));
     logFnDuration(dtStart, events.length, 'event');
 }
@@ -366,13 +366,21 @@ function processEvents(events, iface, latestData, token0, token1, latestDataFile
 function updateLatestDataLiquidity(latestData, blockNumber, tickLower, tickUpper, amount) {
     // console.log(`Adding ${amount} from ${tickLower} to ${tickUpper}`);
     const amountNorm = amount.div(CONSTANT_1e18).toNumber();
-    for(let tick = tickLower ; tick < tickUpper ; tick += latestData.tickSpacing) {
-        if(!latestData.ticks[tick]) {
+    for (let tick = tickLower; tick < tickUpper; tick += latestData.tickSpacing) {
+        if (!latestData.ticks[tick]) {
             latestData.ticks[tick] = 0;
         }
 
+        if (latestData.blockNumber === 17853406) {
+            console.log('latestData.ticks[tick] += amountNorm');
+            console.log(`latestData.ticks[${tick}] += ${amountNorm}`);
+        }
         // always add because for burn events, amount value will be < 0
         latestData.ticks[tick] += amountNorm;
+
+        if (latestData.blockNumber === 17853406) {
+            console.log(`latestData.ticks[tick] = ${latestData.ticks[tick]}`);
+        }
     }
 
     latestData.blockNumber = blockNumber;
@@ -382,10 +390,11 @@ function getSaveData(token0, token1, latestData) {
     // Compute token0->token1 price
     const p0 = getPriceNormalized(latestData.currentTick, token0.decimals, token1.decimals);
 
-    const slippages = getSlippages(latestData.currentTick, latestData.tickSpacing, latestData.currentSqrtPriceX96.toString(), latestData.ticks, token0.decimals, token1.decimals);
+    const slippages =
+        getSlippages(latestData.currentTick, latestData.tickSpacing, latestData.currentSqrtPriceX96.toString(), latestData.ticks, token0.decimals, token1.decimals);
     const saveValue = {
         p0vs1: p0,
-        p1vs0: 1/p0
+        p1vs0: 1 / p0
     };
 
     saveValue[`${token0.symbol}-slippagemap`] = slippages.token0Slippage;
@@ -395,4 +404,4 @@ function getSaveData(token0, token1, latestData) {
     return `${latestData.blockNumber},${JSON.stringify(saveValue)}\n`;
 }
 
-module.exports = { UniswapV3HistoryFetcher };
+module.exports = { UniswapV3HistoryFetcher, updateLatestDataLiquidity, processEvents };
