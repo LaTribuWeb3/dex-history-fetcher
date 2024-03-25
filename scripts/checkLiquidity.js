@@ -1,22 +1,22 @@
 const { getLiquidity, getLiquidityAll } = require('../src/data.interface/data.interface');
 const { watchedPairs } = require('../src/global.config');
-const { PLATFORMS } = require('../src/utils/constants');
+const { PLATFORMS, BLOCK_PER_DAY } = require('../src/utils/constants');
 const fs = require('fs');
 const { roundTo } = require('../src/utils/utils');
 
 async function checkLiquidity() {
 
-    fs.writeFileSync('liquidityresult.csv', 'base,quote,liquidity\n');
+    const base = 'wstETH';
+    const quote = 'USDC';
 
-    // for(const base of Object.keys(watchedPairs)) {
-    //     for(const quoteCfg of watchedPairs[base]) {
-    //         const quote = quoteCfg.quote;
-    //         computePairLiquidity(base, quote);
-    //         computePairLiquidity(quote, base);
-    //     }
-    // }
+    const atBlock = 19461360- BLOCK_PER_DAY * 15;
+    // const atBlock = 19461360;
+    const newLiquidity = getLiquidityAll(base, quote, atBlock, atBlock);
+    console.log(`${base}/${quote} TOTAL 5% SLIPPAGE: ${newLiquidity[atBlock].slippageMap[500].base} ${base}`);
 
-    computePairLiquidity('rETH', 'WETH');
+
+    // fs.writeFileSync('liquidityresult.csv', 'base,quote,liquidity\n');
+    // computePairLiquidity('rETH', 'WETH');
     
 }
 

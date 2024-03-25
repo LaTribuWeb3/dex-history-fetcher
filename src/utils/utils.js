@@ -90,6 +90,7 @@ function logFnDuration(dtStart, jobCount = undefined, jobName = 'job') {
  * @param {number} jobName the name for the jobs done
  */
 function logFnDurationWithLabel(dtStart, label) {
+    if (!process.env.DEBUG_DURATION) return;
     const secDuration = (Date.now() - dtStart)/1000;
     console.log(`${logFnDurationWithLabel.caller.name} | ${label} | duration: ${roundTo(secDuration, 2)} s`);
 }

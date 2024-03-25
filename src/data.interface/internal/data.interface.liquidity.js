@@ -272,7 +272,11 @@ function getLiquidityAccrossDexes(fromSymbol, toSymbol, fromBlock, toBlock, step
 
     // get the direct route liquidity from all dexes
     const data = getSumSlippageMapAcrossDexes(fromSymbol, toSymbol, fromBlock, toBlock, stepBlock);
-
+    if(data.unifiedData) {
+        console.log(`Direct route [${fromSymbol}->${toSymbol}] = ${data.unifiedData[fromBlock].slippageMap[500].base} ${fromSymbol}`);
+    } else {
+        console.log(`Direct route [${fromSymbol}->${toSymbol}] = 0 ${fromSymbol}`);
+    }
 
     // init to 0 if no data
     if (!data.unifiedData) {
@@ -303,7 +307,7 @@ function getLiquidityAccrossDexes(fromSymbol, toSymbol, fromBlock, toBlock, step
             }
 
             const segment1DataForBlock = getPivotDataForBlock(pivotData, fromSymbol, pivot, blockNumber);
-                
+            
             if(!segment1DataForBlock) {
                 continue;
             }
@@ -313,6 +317,7 @@ function getLiquidityAccrossDexes(fromSymbol, toSymbol, fromBlock, toBlock, step
                 continue;
             }
 
+
             if(!liquidityData[blockNumber].price) {
                 const computedPrice = segment1DataForBlock.price * segment2DataForBlock.price;
                 liquidityData[blockNumber].price = computedPrice;
@@ -321,6 +326,9 @@ function getLiquidityAccrossDexes(fromSymbol, toSymbol, fromBlock, toBlock, step
 
             for(const slippageBps of Object.keys(aggregatedSlippageMap)) {
                 const aggregVolume = computeAggregatedVolumeFromPivot(segment1DataForBlock.slippageMap, segment2DataForBlock.slippageMap, slippageBps);
+                if(slippageBps == '500') {
+                    console.log(`Aggreg route [${fromSymbol}->${pivot}->${toSymbol}] = aggreg(${segment1DataForBlock.slippageMap[500].base} ${fromSymbol}, ${segment2DataForBlock.slippageMap[500].base} ${pivot}) = ${aggregVolume.base} ${fromSymbol}` );
+                }
                 aggregatedSlippageMap[slippageBps].base += aggregVolume.base;
                 aggregatedSlippageMap[slippageBps].quote += aggregVolume.quote;
             }
@@ -333,7 +341,10 @@ function getLiquidityAccrossDexes(fromSymbol, toSymbol, fromBlock, toBlock, step
         }
     }
 
-    console.log(`${fnName()}[${fromSymbol}/${toSymbol}]: used pivots ${pivots} and pools ${data.usedPools}`);
+    if (process.env.DEBUG_DURATION) {
+        console.log(`${fnName()}[${fromSymbol}/${toSymbol}]: used pivots ${pivots} and pools ${data.usedPools}`);
+    }
+
     // console.log(`[${fromSymbol}/${toSymbol}] | [ALL] | 5% slippage: ${liquidityData[fromBlock].slippageMap[500].base}`);
 
     return liquidityData;
