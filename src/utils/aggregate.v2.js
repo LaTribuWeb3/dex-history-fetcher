@@ -1,5 +1,5 @@
-const { getUnifiedDataForInterval } = require("../data.interface/internal/data.interface.utils");
-const { DEFAULT_STEP_BLOCK } = require("./constants");
+const { getUnifiedDataForInterval } = require('../data.interface/internal/data.interface.utils');
+const { DEFAULT_STEP_BLOCK } = require('./constants');
 
 const MAX_JUMPS = 2;
 
@@ -179,11 +179,11 @@ function test() {
     const quote = 'USDC';
     const platform = 'uniswapv3';
     const targetSlippage = 500;
-    const usedPools = [];
 
-    const pivots = ['WETH'];
+    const pivots = ['WETH', 'USDC', 'USDT', 'DAI', 'WBTC'];
 
     const allRoutes = generateAllRoutes(base, quote, pivots, MAX_JUMPS);
+    console.log(allRoutes);
 
     const allSegments = {};
 
@@ -193,8 +193,10 @@ function test() {
             const from = route[i-1];
             const to = route[i];
             if(!allSegments[from] || !allSegments[from][to]) {
-                const data = getUnifiedDataForInterval(platform, from, to, 19481972, 19481972, DEFAULT_STEP_BLOCK, usedPools);
-                usedPools.push(...data.usedPools);
+                const data = getUnifiedDataForInterval(platform, from, to, 19481972, 19481972, DEFAULT_STEP_BLOCK, []);
+                if(!data) {
+                    console.log(from, to);
+                }
                 if(!allSegments[from]) {
                     allSegments[from] = {};
                 }
@@ -233,6 +235,7 @@ function test() {
             // update remaining in segments
             for(let i = 0; i < routeSegments.length; i++) {
                 const usedForSegment = liquidityData.usedForSegments[i];
+                if(!usedForSegment) continue;
                 const from = routeSegments[i].base;
                 const to = routeSegments[i].quote;
                 console.log(`for segment ${routeSegments[i].base}->${routeSegments[i].quote}: used:`, usedForSegment);
