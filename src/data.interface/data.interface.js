@@ -6,11 +6,11 @@
 //////////// THE FETCHERS //////////////
 
 const { getPrices } = require('./internal/data.interface.price');
-const { getSlippageMapForInterval, getLiquidityAccrossDexes } = require('./internal/data.interface.liquidity');
+const { getSlippageMapForInterval, getLiquidityAccrossDexes, getLiquidityAccrossDexesViaWETHFromSymbol, getLiquidityAccrossDexesViaWETHToSymbol } = require('./internal/data.interface.liquidity');
 const { logFnDurationWithLabel } = require('../utils/utils');
 const { PLATFORMS, DEFAULT_STEP_BLOCK, LAMBDA } = require('../utils/constants');
 const { rollingBiggestDailyChange } = require('../utils/volatility');
-const { GetPairToUse } = require('../global.config');
+const { GetPairToUse, jumpViaEth } = require('../global.config');
 
 
 //    _____  _   _  _______  ______  _____   ______        _____  ______     ______  _    _  _   _   _____  _______  _____  ____   _   _   _____ 
@@ -54,6 +54,13 @@ function getLiquidity(platform, fromSymbol, toSymbol, fromBlock, toBlock, withJu
  */
 function getLiquidityAll(fromSymbol, toSymbol, fromBlock, toBlock, stepBlock = DEFAULT_STEP_BLOCK) {
     const {actualFrom, actualTo} = GetPairToUse(fromSymbol, toSymbol);
+
+    if(jumpViaEth.includes(actualFrom) && actualTo != 'WETH') {
+        return getLiquidityAccrossDexesViaWETHFromSymbol(actualFrom, actualTo, fromBlock, toBlock, stepBlock);
+    } else if(actualFrom != 'WETH' && jumpViaEth.includes(actualTo)) {
+        return getLiquidityAccrossDexesViaWETHToSymbol(actualFrom, actualTo, fromBlock, toBlock, stepBlock);
+    }
+    
     return getLiquidityAccrossDexes(actualFrom, actualTo, fromBlock, toBlock, stepBlock);
 }
 

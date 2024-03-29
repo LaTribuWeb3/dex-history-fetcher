@@ -1,3 +1,4 @@
+const { jumpViaEth } = require('../../global.config');
 const { computeAggregatedVolumeFromPivot } = require('../../utils/aggregator');
 const { DEFAULT_STEP_BLOCK, PLATFORMS } = require('../../utils/constants');
 const { fnName } = require('../../utils/utils');
@@ -39,13 +40,132 @@ function getAverageLiquidityForInterval(fromSymbol, toSymbol, fromBlock, toBlock
  */
 function getSlippageMapForInterval(fromSymbol, toSymbol, fromBlock, toBlock, platform, withJumps, stepBlock=DEFAULT_STEP_BLOCK) {
     // with jumps mean that we will try to add pivot routes (with WBTC, WETH and USDC as pivot)
-    if(withJumps) {
-        const liquidityDataWithJumps = getSlippageMapForIntervalWithJumps(fromSymbol, toSymbol, fromBlock, toBlock, platform, stepBlock);
-        return liquidityDataWithJumps;
-    } else {
+    if(!withJumps) {
+        
         const liquidityData = getUnifiedDataForInterval(platform, fromSymbol, toSymbol, fromBlock, toBlock, stepBlock, []);
         return liquidityData.unifiedData;
     }
+
+    if(jumpViaEth.includes(fromSymbol) && toSymbol != 'WETH') {
+        const liquidityDataWithJumps = getSlippageMapForIntervalWithJumpsViaWETHFromSymbol(
+            fromSymbol,
+            toSymbol,
+            fromBlock,
+            toBlock,
+            platform,
+            stepBlock
+        );
+        return liquidityDataWithJumps;
+    } else if(fromSymbol != 'WETH' && jumpViaEth.includes(toSymbol)) {
+        const liquidityDataWithJumps = getSlippageMapForIntervalWithJumpsViaWETHToSymbol(
+            fromSymbol,
+            toSymbol,
+            fromBlock,
+            toBlock,
+            platform,
+            stepBlock
+        );
+        return liquidityDataWithJumps;
+    }
+
+    const liquidityDataWithJumps = getSlippageMapForIntervalWithJumps(fromSymbol, toSymbol, fromBlock, toBlock, platform, stepBlock);
+    return liquidityDataWithJumps;
+    
+}
+
+function getSlippageMapForIntervalWithJumpsViaWETHFromSymbol(
+    fromSymbol,
+    toSymbol,
+    fromBlock,
+    toBlock,
+    platform,
+    stepBlock = DEFAULT_STEP_BLOCK
+) {
+    const liquidityData = {};
+  
+    // find direct liquidity {fromSymbol}=>ETH
+    let directLiquidity = getUnifiedDataForInterval(platform, fromSymbol, 'WETH', fromBlock, toBlock, stepBlock, []);
+    if (!directLiquidity.unifiedData) {
+        return undefined;
+    }
+
+    const ethToSymbolData = getSlippageMapForIntervalWithJumps('WETH', toSymbol, fromBlock, toBlock, platform, stepBlock);
+    if (!ethToSymbolData) {
+        return undefined;
+    }
+  
+    for (const [blockNumber, wbethData] of Object.entries(directLiquidity.unifiedData)) {
+        liquidityData[blockNumber] = {
+            price: wbethData.price,
+            slippageMap: getDefaultSlippageMap()
+        };
+  
+        const segment1DataForBlock = wbethData;
+        const segment2DataForBlock = ethToSymbolData[blockNumber];
+  
+        for (const slippageBps of Object.keys(liquidityData[blockNumber].slippageMap)) {
+            const aggregVolume = computeAggregatedVolumeFromPivot(
+                segment1DataForBlock.slippageMap,
+                segment2DataForBlock.slippageMap,
+                slippageBps
+            );
+            liquidityData[blockNumber].slippageMap[slippageBps].base = aggregVolume.base;
+            liquidityData[blockNumber].slippageMap[slippageBps].quote = aggregVolume.quote;
+        }
+    }
+  
+    return liquidityData;
+}
+
+function getSlippageMapForIntervalWithJumpsViaWETHToSymbol(
+    fromSymbol,
+    toSymbol,
+    fromBlock,
+    toBlock,
+    platform,
+    stepBlock = DEFAULT_STEP_BLOCK
+) {
+    const liquidityData = {};
+    // specific case, compute aggregated route {fromSymbol}=>ETH
+    // and then another round with Aggregated route=>wBETH computed before
+    const symbolToEthData = getSlippageMapForIntervalWithJumps(
+        fromSymbol,
+        'WETH',
+        fromBlock,
+        toBlock,
+        platform,
+        stepBlock
+    );
+    if (!symbolToEthData) {
+        return undefined;
+    }
+    // find direct liquidity ETH=>toSymbol
+    let directLiquidity = getUnifiedDataForInterval(platform, 'WETH', toSymbol, fromBlock, toBlock, stepBlock, []);
+    if (!directLiquidity.unifiedData) {
+        return undefined;
+    }
+  
+    for (const [blockNumber, symbolToEthLiquidity] of Object.entries(symbolToEthData)) {
+        liquidityData[blockNumber] = {
+            price: symbolToEthLiquidity.price,
+            slippageMap: getDefaultSlippageMap()
+        };
+  
+        const segment1DataForBlock = symbolToEthLiquidity;
+        const segment2DataForBlock = directLiquidity.unifiedData[blockNumber];
+  
+        for (const slippageBps of Object.keys(liquidityData[blockNumber].slippageMap)) {
+            const aggregVolume = computeAggregatedVolumeFromPivot(
+                segment1DataForBlock.slippageMap,
+                segment2DataForBlock.slippageMap,
+                slippageBps
+            );
+            liquidityData[blockNumber].slippageMap[slippageBps].base = aggregVolume.base;
+            liquidityData[blockNumber].slippageMap[slippageBps].quote = aggregVolume.quote;
+        }
+    }
+  
+    return liquidityData;
 }
 
 /**
@@ -421,5 +541,84 @@ function getSumSlippageMapAcrossDexes(fromSymbol, toSymbol, fromBlock, toBlock, 
     return {unifiedData: baseData, usedPools: alreadyUsedPools};
 }
 
+// do A = {from}=>ETH and B = aggregate(WETH=>to using pivots)
+// then aggregate(A,B)
+function getLiquidityAccrossDexesViaWETHFromSymbol(fromSymbol, toSymbol, fromBlock, toBlock, stepBlock = DEFAULT_STEP_BLOCK) {
+    const liquidityData = {};
+  
+    // get sum slippage map for fromSymbol=>ETH
+    const directLiquidity = getSumSlippageMapAcrossDexes(fromSymbol, 'WETH', fromBlock, toBlock, stepBlock);
+    if (!directLiquidity.unifiedData) {
+        return undefined;
+    }
 
-module.exports = { getAverageLiquidityForInterval, getSlippageMapForInterval, getLiquidityAccrossDexes, computeAverageSlippageMap};
+    // get aggregated liquidity accross dexes ETH=>{ToSymbol}
+    const ethToSymbolData = getLiquidityAccrossDexes('WETH', toSymbol, fromBlock, toBlock, stepBlock);
+    if (!ethToSymbolData) {
+        return undefined;
+    }
+  
+    for (const [blockNumber, wbethData] of Object.entries(directLiquidity.unifiedData)) {
+        liquidityData[blockNumber] = {
+            price: wbethData.price,
+            slippageMap: getDefaultSlippageMap()
+        };
+  
+        const segment1DataForBlock = wbethData;
+        const segment2DataForBlock = ethToSymbolData[blockNumber];
+  
+        for (const slippageBps of Object.keys(liquidityData[blockNumber].slippageMap)) {
+            const aggregVolume = computeAggregatedVolumeFromPivot(
+                segment1DataForBlock.slippageMap,
+                segment2DataForBlock.slippageMap,
+                slippageBps
+            );
+            liquidityData[blockNumber].slippageMap[slippageBps].base = aggregVolume.base;
+            liquidityData[blockNumber].slippageMap[slippageBps].quote = aggregVolume.quote;
+        }
+    }
+  
+    return liquidityData;
+}
+
+// do A = {from}=>WETH and B = aggregate(WETH=>{to} via pivots)
+// then aggregate(A,B)
+function getLiquidityAccrossDexesViaWETHToSymbol(fromSymbol, toSymbol, fromBlock, toBlock, stepBlock = DEFAULT_STEP_BLOCK) {
+    const liquidityData = {};
+    // get aggregated liquidity accross dexes {toSymbol}=>ETH
+    const symbolToEthData = getLiquidityAccrossDexes(fromSymbol, 'WETH', fromBlock, toBlock, stepBlock);
+    if (!symbolToEthData) {
+        return undefined;
+    }
+  
+    // get sum slippage map for ETH=>toSymbol
+    const directLiquidity = getSumSlippageMapAcrossDexes('WETH', toSymbol, fromBlock, toBlock, stepBlock);
+    if (!directLiquidity.unifiedData) {
+        return undefined;
+    }
+  
+    for (const [blockNumber, symbolToEthLiquidity] of Object.entries(symbolToEthData)) {
+        liquidityData[blockNumber] = {
+            price: symbolToEthLiquidity.price,
+            slippageMap: getDefaultSlippageMap()
+        };
+  
+        const segment1DataForBlock = symbolToEthLiquidity;
+        const segment2DataForBlock = directLiquidity.unifiedData[blockNumber];
+  
+        for (const slippageBps of Object.keys(liquidityData[blockNumber].slippageMap)) {
+            const aggregVolume = computeAggregatedVolumeFromPivot(
+                segment1DataForBlock.slippageMap,
+                segment2DataForBlock.slippageMap,
+                slippageBps
+            );
+            liquidityData[blockNumber].slippageMap[slippageBps].base = aggregVolume.base;
+            liquidityData[blockNumber].slippageMap[slippageBps].quote = aggregVolume.quote;
+        }
+    }
+  
+    return liquidityData;
+}
+
+
+module.exports = { getAverageLiquidityForInterval, getSlippageMapForInterval, getLiquidityAccrossDexes, computeAverageSlippageMap, getLiquidityAccrossDexesViaWETHToSymbol, getLiquidityAccrossDexesViaWETHFromSymbol};

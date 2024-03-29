@@ -517,4 +517,9 @@ function GetPairToUse(from, to) {
     return {actualFrom, actualTo};
 }
 
-module.exports = { tokens, watchedPairs, GetPairToUse };
+// tokens we to go through WETH
+const jumpViaEth = [
+    'wstETH'
+];
+
+module.exports = { tokens, watchedPairs, GetPairToUse, jumpViaEth };
