@@ -52,7 +52,8 @@ const uniswapV2Pairs = [
   "WETH-ZRX",
   "YFI-WETH",
   "stETH-WETH",
-  "HarryPotterObamaSonic10Inu-WETH"
+  "HarryPotterObamaSonic10Inu-WETH",
+  "ezETH-WETH"
 ]
 
 // // compound assets + oracle 

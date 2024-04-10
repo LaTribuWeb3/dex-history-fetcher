@@ -52,6 +52,11 @@ const pairsToFetch = [
         base: "FXS",
         quote: "WETH",
         pool: "0x61eb53ee427ab4e007d78a9134aacb3101a2dc23"
+    },
+    {
+        base: "ezETH",
+        quote: "WETH",
+        pool: "0x61eb53ee427ab4e007d78a9134aacb3101a2dc23"
     }
 ]
 

@@ -234,6 +234,11 @@ const tokens = {
         address: '0x3432B6A60D23Ca0dFCa7761B7ab56459D9C964D0',
         dustAmount: 0.1
     },
+    ezETH: {
+        decimals: 18,
+        address: '0xbf5495Efe5DB9ce00f80364C8B423567e58d2110',
+        dustAmount: 0.0001
+    }
 };
 
 // goes both ways

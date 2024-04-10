@@ -233,6 +233,24 @@ const curvePairs = [
             },
         ]
     },
+    {
+        poolAddress: '0x85dE3ADd465a219EE25E04d22c39aB027cF5C12E',
+        poolName: 'ezEthWETHPool',
+        lpTokenAddress: '0x85dE3ADd465a219EE25E04d22c39aB027cF5C12E',
+        lpTokenName: 'ezETH-WETH',
+        abi: 'CurveStableSwapNG',
+        minBlock: 17278752, // before that block, reserves are 0 and break the computing
+        tokens: [
+            {
+                symbol: 'WETH',
+                address: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
+            },
+            {
+                symbol: 'ezETH',
+                address: '0xbf5495efe5db9ce00f80364c8b423567e58d2110',
+            },
+        ]
+    },
 ]
 
 const curvePricePairs = [
