@@ -238,6 +238,11 @@ const tokens = {
         decimals: 18,
         address: '0xbf5495Efe5DB9ce00f80364C8B423567e58d2110',
         dustAmount: 0.0001
+    },
+    pufETH: {
+        decimals: 18,
+        address: '0xD9A442856C234a39a81a089C06451EBAa4306a72',
+        dustAmount: 0.0001
     }
 };
 
