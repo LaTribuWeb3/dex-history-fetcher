@@ -18,7 +18,10 @@ const spans = [7, 30, 180];
  * Compute the CLFs values for Morpho
  * @param {number} fetchEveryMinutes 
  */
-async function morphoFlagshipComputer(fetchEveryMinutes, startDate=Date.now()) {
+async function morphoFlagshipComputer(fetchEveryMinutes, startDate=undefined) {
+    if(startDate === undefined) {
+        startDate = Date.now() - 10 * 60 * 1000;
+    }
     const MONITORING_NAME = 'Morpho Flagship CLF Computer';
     const start = Date.now();
     try {

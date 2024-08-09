@@ -17,7 +17,11 @@ const spans = [7, 30, 180];
  * Compute the CLFs values for compound v3
  * @param {number} fetchEveryMinutes 
  */
-async function compoundV3Computer(fetchEveryMinutes, startDate=Date.now()) {
+async function compoundV3Computer(fetchEveryMinutes, startDate=undefined) {
+    if(startDate === undefined) {
+        startDate = Date.now() - 10 * 60 * 1000;
+    }
+    
     const MONITORING_NAME = 'CompoundV3 CLF Computer';
     const start = Date.now();
     try {
