@@ -58,6 +58,12 @@ const tokens = {
         'decimals': 8,
         'address': '0xCAbAE6f6Ea1ecaB08Ad02fE02ce9A44F09aebfA2',
         'dustAmount': 0.01
+    },
+    "cbBTC": {
+        "symbol": "cbBTC",
+        "decimals": 8,
+        "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf",
+        "dustAmount": 0.00001
     }
 };
 
@@ -98,6 +104,11 @@ const watchedPairs = {
             quote: 'USDY',
             pivots: undefined,
             exportToInternalDashboard: true
+        },
+        {
+            quote: 'cbBTC',
+            pivots: undefined,
+            exportToInternalDashboard: true
         }
     ],
     'USDC': [
@@ -128,6 +139,11 @@ const watchedPairs = {
         },
         {
             quote: 'USDY',
+            pivots: undefined,
+            exportToInternalDashboard: true
+        },
+        {
+            quote: 'cbBTC',
             pivots: undefined,
             exportToInternalDashboard: true
         }
@@ -196,6 +212,11 @@ const watchedPairs = {
             quote: 'USDY',
             pivots: undefined,
             exportToInternalDashboard: true
+        },
+        {
+            quote: 'cbBTC',
+            pivots: undefined,
+            exportToInternalDashboard: true
         }
     ],
     'WBTC': [
@@ -206,6 +227,11 @@ const watchedPairs = {
         },
         {
             quote: 'USDY',
+            pivots: undefined,
+            exportToInternalDashboard: true
+        },
+        {
+            quote: 'cbBTC',
             pivots: undefined,
             exportToInternalDashboard: true
         }
