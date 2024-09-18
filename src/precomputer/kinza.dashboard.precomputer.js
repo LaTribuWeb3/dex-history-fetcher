@@ -16,7 +16,7 @@ const { DATA_DIR } = require('../utils/constants');
  * @param {number} fetchEveryMinutes 
  */
 async function kinzaDashboardPrecomputer(fetchEveryMinutes) {
-    const MONITORING_NAME = '[MANTLE] Kinza Dashboard Summary Computer';
+    const MONITORING_NAME = 'Kinza Dashboard Summary Computer';
     const start = Date.now();
     try {
         await RecordMonitoring({
@@ -108,46 +108,38 @@ async function computeSubMarket(base, quote, web3Provider) {
     const quoteConf = getConfTokenBySymbol(quote);
     const baseTokenAddress = baseConf.address;
     const quoteTokenAddress = quoteConf.address;
-    // const protocolDataProviderContract = new ethers.Contract(
-    //     protocolDataProviderAddress,
-    //     protocolDataProviderABI,
-    //     web3Provider
-    // );
-  
-    const baseTokenInfo = await axios.get(
-        'https://coins.llama.fi/prices/current/mantle:' + baseTokenAddress + ',mantle:' + quoteTokenAddress
+    const protocolDataProviderContract = new ethers.Contract(
+        protocolDataProviderAddress,
+        protocolDataProviderABI,
+        web3Provider
     );
-
-    const basePrice = baseTokenInfo.data.coins['mantle:' + baseTokenAddress].price;
-    const quotePrice = baseTokenInfo.data.coins['mantle:' + quoteTokenAddress].price;
   
     // if wBETH/USDC, baseReserveCaps is for wBETH
-    // const baseReserveCaps = await retry(protocolDataProviderContract.getReserveCaps, [baseConf.address]);
+    const baseReserveCaps = await retry(protocolDataProviderContract.getReserveCaps, [baseConf.address]);
     // if wBETH/USDC, quoteReserveCaps is for USDC
-    // const quoteReserveCaps = await retry(protocolDataProviderContract.getReserveCaps, [quoteConf.address]);
-    // const reserveDataConfigurationBase = await retry(protocolDataProviderContract.getReserveConfigurationData, [
-    //     baseTokenAddress
-    // ]);
-
+    const quoteReserveCaps = await retry(protocolDataProviderContract.getReserveCaps, [quoteConf.address]);
+    const reserveDataConfigurationBase = await retry(protocolDataProviderContract.getReserveConfigurationData, [
+        baseTokenAddress
+    ]);
+  
+    const baseTokenInfo = await axios.get(
+        'https://coins.llama.fi/prices/current/ethereum:' + baseTokenAddress + ',ethereum:' + quoteTokenAddress
+    );
+  
     let riskLevel = 0.0;
   
-    // const liquidationBonusBps = reserveDataConfigurationBase.liquidationBonus.toNumber() - 10000;
-    const liquidationBonusBps = 500; //
+    const liquidationBonusBps = reserveDataConfigurationBase.liquidationBonus.toNumber() - 10000;
   
-    // const baseSupplyCapUSD = baseReserveCaps.supplyCap.toNumber() * basePrice;
-    // const quoteBorrowCapUSD = quoteReserveCaps.borrowCap.toNumber() * quotePrice;
-    const baseSupplyCapUSD = 50_000_000;
-    const quoteBorrowCapUSD = 50_000_000;
+    const baseSupplyCapUSD = baseReserveCaps.supplyCap.toNumber() * baseTokenInfo.data.coins['ethereum:' + baseTokenAddress].price;
+    const quoteBorrowCapUSD = quoteReserveCaps.borrowCap.toNumber() * baseTokenInfo.data.coins['ethereum:' + quoteTokenAddress].price;
     const capToUseUsd = Math.min(baseSupplyCapUSD, quoteBorrowCapUSD);
-    // const liquidationThresholdBps = reserveDataConfigurationBase.liquidationThreshold.toNumber();
-    const liquidationThresholdBps = 7500;
-    // const ltvBps = reserveDataConfigurationBase.ltv.toNumber();
-    const ltvBps = 8000;
+    const liquidationThresholdBps = reserveDataConfigurationBase.liquidationThreshold.toNumber();
+    const ltvBps = reserveDataConfigurationBase.ltv.toNumber();
 
     const {volatility, liquidityInKind} = getLiquidityAndVolatilityFromDashboardData(base, quote, liquidationBonusBps);
   
     const liquidity = liquidityInKind;
-    const liquidityUsd = liquidity * basePrice;
+    const liquidityUsd = liquidity * baseTokenInfo.data.coins['ethereum:' + baseTokenAddress].price;
     const selectedVolatility = volatility;
     riskLevel = findRiskLevelFromParameters(
         selectedVolatility,
@@ -163,15 +155,13 @@ async function computeSubMarket(base, quote, web3Provider) {
         LTV: ltvBps / 10000,
         liquidationBonus: liquidationBonusBps / 10000,
         supplyCapUsd: baseSupplyCapUSD,
-        // supplyCapInKind: baseReserveCaps.supplyCap.toNumber(),
-        supplyCapInKind: 50_000_000 / basePrice,
+        supplyCapInKind: baseReserveCaps.supplyCap.toNumber(),
         borrowCapUsd: quoteBorrowCapUSD,
-        // borrowCapInKind: quoteReserveCaps.borrowCap.toNumber(),
-        borrowCapInKind: 50_000_000 / quotePrice,
+        borrowCapInKind: quoteReserveCaps.borrowCap.toNumber(),
         volatility: selectedVolatility,
         liquidity: liquidity,
-        basePrice: basePrice,
-        quotePrice: quotePrice
+        basePrice: baseTokenInfo.data.coins['ethereum:' + baseTokenAddress].price,
+        quotePrice: baseTokenInfo.data.coins['ethereum:' + quoteTokenAddress].price
     };
   
     console.log(`computeSubMarket[${base}/${quote}]: result:`, pairValue);
