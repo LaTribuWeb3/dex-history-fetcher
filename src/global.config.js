@@ -254,6 +254,11 @@ const tokens = {
         address: '0xbf5495Efe5DB9ce00f80364C8B423567e58d2110',
         dustAmount: 0.001
     },
+    cbBTC: {
+        decimals: 8,
+        address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf',
+        dustAmount: 0.00001
+    }
 };
 
 // goes both ways
@@ -369,6 +374,11 @@ const watchedPairs = {
             pivots: undefined,
             exportToInternalDashboard: true
         },
+        {
+            quote: 'cbBTC',
+            pivots: undefined,
+            exportToInternalDashboard: true
+        }
     ],
     'USDC': [
         {
@@ -503,6 +513,11 @@ const watchedPairs = {
         {
             quote: 'pufETH',
             pivots: ['WETH'],
+            exportToInternalDashboard: false
+        },
+        {
+            quote: 'cbBTC',
+            pivots: undefined,
             exportToInternalDashboard: false
         }
     ],
