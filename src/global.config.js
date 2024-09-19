@@ -518,7 +518,7 @@ const watchedPairs = {
         {
             quote: 'cbBTC',
             pivots: undefined,
-            exportToInternalDashboard: false
+            exportToInternalDashboard: true
         }
     ],
     'WBTC': [
@@ -572,6 +572,12 @@ const watchedPairs = {
             pivots: ['WETH'],
             exportToInternalDashboard: true
         },
+        {
+            quote: 'cbBTC',
+            pivots: undefined,
+            exportToInternalDashboard: true
+        }
+
     ],
     'USDT': [
         {
