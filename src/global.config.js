@@ -258,6 +258,11 @@ const tokens = {
         decimals: 8,
         address: '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf',
         dustAmount: 0.00001
+    },
+    sUSDS: {
+        decimals: 18,
+        address: '0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD',
+        dustAmount: 0.001
     }
 };
 
@@ -517,6 +522,11 @@ const watchedPairs = {
         },
         {
             quote: 'cbBTC',
+            pivots: undefined,
+            exportToInternalDashboard: true
+        },
+        {
+            quote: 'sUSDS',
             pivots: undefined,
             exportToInternalDashboard: true
         }
