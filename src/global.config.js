@@ -263,6 +263,11 @@ const tokens = {
         decimals: 18,
         address: '0xa3931d71877C0E7a3148CB7Eb4463524FEc27fbD',
         dustAmount: 0.001
+    },
+    USDS: {
+        decimals: 18,
+        address: '0xdC035D45d973E3EC169d2276DDab16f1e407384F',
+        dustAmount: 0.001
     }
 };
 
@@ -383,7 +388,12 @@ const watchedPairs = {
             quote: 'cbBTC',
             pivots: undefined,
             exportToInternalDashboard: true
-        }
+        },
+        {
+            quote: 'sUSDS',
+            pivots: undefined,
+            exportToInternalDashboard: true
+        },
     ],
     'USDC': [
         {
@@ -527,7 +537,9 @@ const watchedPairs = {
         },
         {
             quote: 'sUSDS',
-            pivots: undefined,
+            pivots: [
+                'DAI'
+            ],
             exportToInternalDashboard: true
         }
     ],
@@ -615,6 +627,11 @@ const watchedPairs = {
             pivots: ['WETH'],
             exportToInternalDashboard: true
         },
+        {
+            quote: 'sUSDS',
+            pivots: undefined,
+            exportToInternalDashboard: true
+        },
     ],
     'wstETH': [
         {
@@ -657,6 +674,11 @@ const watchedPairs = {
         {
             quote: 'weETH',
             pivots: ['WETH'],
+            exportToInternalDashboard: true
+        },
+        {
+            quote: 'sUSDS',
+            pivots: undefined,
             exportToInternalDashboard: true
         },
     ],
@@ -702,6 +724,13 @@ function GetPairToUse(from, to) {
     }
     if(to == 'sDAI') {
         actualTo = 'DAI';
+    }
+
+    if(from == 'sUSDS') {
+        actualFrom = 'USDS';
+    }
+    if(to == 'sUSDS') {
+        actualTo = 'USDS';
     }
 
     return {actualFrom, actualTo};
